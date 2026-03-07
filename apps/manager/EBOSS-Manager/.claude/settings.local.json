@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c where supabase)",
+      "Bash(cmd /c scoop install supabase)"
+    ]
+  }
+}

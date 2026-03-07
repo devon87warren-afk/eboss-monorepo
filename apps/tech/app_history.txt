@@ -1,0 +1,114 @@
+commit 808cf604e92e123b275c5c6702109275b2c852bd
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 30 12:36:46 2026 -0800
+
+    feat: Add Salesforce customer lookup functionality, including a dedicated test page, UI component, and server actions.
+
+A	src/app/config/page.tsx
+A	src/app/logs/page.tsx
+A	src/app/monitor/page.tsx
+
+commit 1a79cee778001e395de8089a8b1040886bdb9aec
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Sat Jan 24 01:18:48 2026 -0800
+
+    feat: update savings workflow and add brand assets
+
+A	src/app/actions/salesforce-actions.ts
+A	src/app/test-salesforce/page.tsx
+
+commit afff73abfe47b898f5b4ea0e2f5083aa17baabe2
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:54:19 2026 -0800
+
+    feat: update savings workflow and add brand assets
+
+A	src/app/actions/savings-actions.ts
+M	src/app/components/dashboard/FleetMap.tsx
+M	src/app/components/dashboard/SavingsCalculator.tsx
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/TravelOptimizer.tsx
+M	src/app/page.tsx
+
+commit f88813f2ccb2d02f15112cf3f1ec1c6e7dff5b50
+Merge: 473a0a1 b2b5a47
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:48:24 2026 -0800
+
+    Merge branch 'fix/code-verification' of https://github.com/devon87warren-afk/EBOSS_Tech_App into fix/code-verification
+
+commit 473a0a1a1970c9073ec78789778b1b4e44e733cb
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:48:20 2026 -0800
+
+    feat: add SavingsCalculator component and update travel-related terminology
+
+A	src/app/components/dashboard/SavingsCalculator.tsx
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/TravelOptimizer.tsx
+M	src/app/page.tsx
+M	src/app/travel/page.tsx
+
+commit b2b5a47d11c00c1927877b46471a67d5db3b68d6
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Wed Jan 21 14:32:18 2026 -0800
+
+    chore: rename app to EBOSS Tech App
+
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/CommissioningChecklist.tsx
+M	src/app/layout.tsx
+M	src/app/lib/mock-data.ts
+
+commit f1d566676ed95105628aceb4fe31415ca95e0934
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Wed Jan 21 13:25:59 2026 -0800
+
+    fix: resolve lint errors and verify codebase
+
+M	src/app/components/dashboard/ActionCenter.tsx
+M	src/app/components/dashboard/FleetMap.tsx
+M	src/app/components/dashboard/StatsOverview.tsx
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/CommissioningChecklist.tsx
+M	src/app/components/workflows/ExpenseCamera.tsx
+M	src/app/components/workflows/TravelOptimizer.tsx
+M	src/app/expenses/page.tsx
+M	src/app/globals.css
+M	src/app/jobs/page.tsx
+M	src/app/layout.tsx
+M	src/app/lib/mock-data.ts
+M	src/app/page.tsx
+M	src/app/travel/page.tsx
+
+commit 8707b5ebe3b592153d374dc215f78fe5f47d7009
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Mon Jan 19 18:27:59 2026 -0800
+
+    feat: Initialize ANA Mobilizer application with core layout, global styles, and dashboard/workflow components.
+
+A	src/app/components/dashboard/ActionCenter.tsx
+A	src/app/components/dashboard/FleetMap.tsx
+A	src/app/components/dashboard/StatsOverview.tsx
+A	src/app/components/ui/Sidebar.tsx
+A	src/app/components/workflows/CommissioningChecklist.tsx
+A	src/app/components/workflows/ExpenseCamera.tsx
+A	src/app/components/workflows/TravelOptimizer.tsx
+A	src/app/expenses/page.tsx
+M	src/app/globals.css
+A	src/app/jobs/page.tsx
+M	src/app/layout.tsx
+A	src/app/lib/mock-data.ts
+M	src/app/page.tsx
+A	src/app/travel/page.tsx
+
+commit 54a44c057005ef32263986fa64cbc57cc97f1773
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Mon Jan 19 09:39:11 2026 -0800
+
+    Initial commit from Create Next App
+
+A	src/app/favicon.ico
+A	src/app/globals.css
+A	src/app/layout.tsx
+A	src/app/page.tsx

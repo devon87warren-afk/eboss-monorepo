@@ -1,0 +1,43 @@
+
+> celestial-sagan@0.1.0 lint
+> eslint
+
+
+C:\Users\User\Documents\GitHub\EBOSS_Tech_App\.agent\skills\typescript-expert\references\utility-types.ts
+   71:51  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:61  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  178:60  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:68  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:78  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:47  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:57  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  242:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  311:40  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  311:50  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  333:33  warning  '_value' is defined but never used        @typescript-eslint/no-unused-vars
+
+C:\Users\User\Documents\GitHub\EBOSS_Tech_App\src\app\components\dashboard\FleetMap.tsx
+  4:16  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\User\Documents\GitHub\EBOSS_Tech_App\src\app\components\workflows\CommissioningChecklist.tsx
+   3:23  warning  'Square' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  52:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\User\Documents\GitHub\EBOSS_Tech_App\src\app\components\workflows\ExpenseCamera.tsx
+  6:10  warning  'motion' is defined but never used           @typescript-eslint/no-unused-vars
+  6:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\User\Documents\GitHub\EBOSS_Tech_App\src\app\components\workflows\TravelOptimizer.tsx
+   4:10  warning  'motion' is defined but never used            @typescript-eslint/no-unused-vars
+   5:17  warning  'Calendar' is defined but never used          @typescript-eslint/no-unused-vars
+  27:12  warning  'days' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  27:18  warning  'setDays' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\User\Documents\GitHub\EBOSS_Tech_App\src\app\lib\mock-data.ts
+  2:10  warning  'Plus' is defined but never used         @typescript-eslint/no-unused-vars
+  2:23  warning  'Wrench' is defined but never used       @typescript-eslint/no-unused-vars
+  2:31  warning  'CheckCircle' is defined but never used  @typescript-eslint/no-unused-vars
+
+Γ£û 24 problems (11 errors, 13 warnings)
+

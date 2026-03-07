@@ -1,0 +1,75 @@
+diff --git a/firestore.rules b/firestore.rules
+index 0000000..0000000 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -49,13 +49,8 @@
+       return exists(/databases/$(database)/documents/sites/$(siteId));
+     }
+ 
+-    function projectExists(siteId) {
+-      return exists(/databases/$(database)/documents/projects/$(siteId));
+-    }
+-
+-    // TODO: Remove projectExists fallback after template/admin flows write true /sites IDs.
+     function isResolvableContainer(siteId) {
+-      return siteExists(siteId) || projectExists(siteId);
++      return siteExists(siteId);
+     }
+ 
+     function isLegacyUnscoped(data) {
+diff --git a/functions/__tests__/firestore.rules.matrix.test.js b/functions/__tests__/firestore.rules.matrix.test.js
+index 0000000..0000000 100644
+--- a/functions/__tests__/firestore.rules.matrix.test.js
++++ b/functions/__tests__/firestore.rules.matrix.test.js
+@@ -146,7 +146,7 @@
+     await assertSucceeds(deleteDoc(doc(activeDb(), "generators", "gen-site-delete")));
+   });
+ 
+-  test("allows generator read when siteId matches existing /projects doc (bridge)", async () => {
++  test("denies generator read when siteId matches only /projects doc (sites-only)", async () => {
+     await seedWithRulesDisabled(testEnv, async (db) => {
+       await setDoc(doc(db, "generators", "gen-project-read"), {
+         siteId: "project-1",
+@@ -155,22 +155,35 @@
+       });
+     });
+ 
+-    await assertSucceeds(getDoc(doc(activeDb(), "generators", "gen-project-read")));
++    await assertFails(getDoc(doc(activeDb(), "generators", "gen-project-read")));
+   });
+ 
+-  test("allows drawing create and update when siteId matches existing /projects doc (bridge)", async () => {
++  test("denies drawing create when siteId matches only /projects doc (sites-only)", async () => {
+     const drawingRef = doc(activeDb(), "drawings", "draw-project-create-update");
+-    await assertSucceeds(setDoc(drawingRef, {
++    await assertFails(setDoc(drawingRef, {
+       siteId: "project-1",
+       type: "polygon",
+       label: "Project keyed drawing",
+       category: "existing",
+       color: "#ff0000",
+     }));
+-
+-    await assertSucceeds(updateDoc(drawingRef, {
+-      label: "Updated project keyed drawing",
+-    }));
+   });
+ 
++  test("denies drawing update when siteId matches only /projects doc (sites-only)", async () => {
++    // Ensure the document exists so the update is testing access not non-existence
++    await seedWithRulesDisabled(testEnv, async (db) => {
++      await setDoc(doc(db, "drawings", "draw-project-update"), {
++        siteId: "project-1",
++        type: "polygon",
++        label: "Project keyed drawing",
++        category: "existing",
++        color: "#ff0000",
++      });
++    });
++
++    await assertFails(updateDoc(doc(activeDb(), "drawings", "draw-project-update"), {
++      label: "Updated project keyed drawing",
++    }));
++  });
++
+   test("allows reads for legacy missing/null siteId docs", async () => {

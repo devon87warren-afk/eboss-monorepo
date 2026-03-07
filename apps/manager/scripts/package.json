@@ -1,0 +1,23 @@
+{
+  "name": "salesforce-ownership-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for transferring Salesforce contact ownership in bulk",
+  "main": "salesforce-ownership-transfer.js",
+  "scripts": {
+    "transfer": "node salesforce-ownership-transfer.js",
+    "install-deps": "npm install"
+  },
+  "keywords": [
+    "salesforce",
+    "contacts",
+    "ownership",
+    "bulk-transfer",
+    "automation"
+  ],
+  "author": "EBOSS Manager Team",
+  "license": "MIT",
+  "dependencies": {
+    "jsforce": "^2.0.0",
+    "dotenv": "^16.0.0"
+  }
+}

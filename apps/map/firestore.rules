@@ -1,0 +1,142 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Reserved for future domain-restricted access checks
+    // function isAnaDomain() {
+    //   return request.auth.token.email.matches('^[a-zA-Z0-9._%+-]+@anacorp\\.com$');
+    // }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function activeUserDataIsValid() {
+      let user = userDoc();
+      return user.data.status == "active";
+    }
+
+    function adminUserDataIsValid() {
+      let user = userDoc();
+      return user.data.status == "active" && user.data.role == "admin";
+    }
+    
+    function isProjectEditor(projectId) {
+      let projectDoc = get(/databases/$(database)/documents/projects/$(projectId));
+      return isActiveUser() && 
+        request.auth.uid in projectDoc.data.members &&
+        projectDoc.data.members[request.auth.uid].role in ['editor', 'admin'];
+
+    function hasActiveUserProfile() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && activeUserDataIsValid();
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && adminUserDataIsValid();
+    }
+
+    function hasSiteId(data) {
+      return data.siteId is string && data.siteId.size() > 0;
+    }
+
+    function siteExists(siteId) {
+      return siteId is string
+        && siteId.size() > 0
+        && exists(/databases/$(database)/documents/sites/$(siteId));
+    }
+
+    function isLegacyUnscoped(data) {
+      return !data.keys().hasAny(["siteId"]) || data.siteId == null;
+    }
+
+    function isResolvableContainer(siteId) {
+      return siteExists(siteId);
+    }
+
+    match /users/{userId} {
+      allow read: if hasActiveUserProfile()
+        && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if hasActiveUserProfile()
+        && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /sites/{siteId} {
+      allow read: if hasActiveUserProfile();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /generators/{generatorId} {
+      allow read: if hasActiveUserProfile()
+        && (isLegacyUnscoped(resource.data)
+          || (hasSiteId(resource.data) && isResolvableContainer(resource.data.siteId)));
+
+      allow create: if hasActiveUserProfile()
+        && hasSiteId(request.resource.data)
+        && isResolvableContainer(request.resource.data.siteId);
+
+      allow update: if hasActiveUserProfile()
+        && hasSiteId(resource.data)
+        && hasSiteId(request.resource.data)
+        && resource.data.siteId == request.resource.data.siteId
+        && isResolvableContainer(resource.data.siteId);
+
+      allow delete: if hasActiveUserProfile()
+        && hasSiteId(resource.data)
+        && isResolvableContainer(resource.data.siteId);
+    }
+
+    match /drawings/{drawingId} {
+      allow read: if hasActiveUserProfile()
+        && (isLegacyUnscoped(resource.data)
+          || (hasSiteId(resource.data) && isResolvableContainer(resource.data.siteId)));
+
+      allow create: if hasActiveUserProfile()
+        && hasSiteId(request.resource.data)
+        && isResolvableContainer(request.resource.data.siteId);
+
+      allow update: if hasActiveUserProfile()
+        && hasSiteId(resource.data)
+        && hasSiteId(request.resource.data)
+        && resource.data.siteId == request.resource.data.siteId
+        && isResolvableContainer(resource.data.siteId);
+
+      allow delete: if hasActiveUserProfile()
+        && hasSiteId(resource.data)
+        && isResolvableContainer(resource.data.siteId);
+    }
+
+    match /auditLogs/{auditLogId} {
+      allow read: if isAdmin();
+      // Project members can read their project's activity
+      allow read: if isActiveUser() && 
+        resource.data.keys().hasAll(['projectId']) && 
+        resource.data.projectId != null && 
+        (get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.visibility == 'internal' ||
+         isProjectMember(resource.data.projectId));
+      // Only Cloud Functions can write audit logs
+      allow create: if false;
+      allow update, delete: if false;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

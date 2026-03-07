@@ -1,0 +1,14 @@
+commit 1a79cee778001e395de8089a8b1040886bdb9aec
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Sat Jan 24 01:18:48 2026 -0800
+
+    feat: update savings workflow and add brand assets
+
+M	.vscode/settings.json
+M	package-lock.json
+M	package.json
+A	src/app/actions/salesforce-actions.ts
+A	src/app/test-salesforce/page.tsx
+A	src/components/salesforce/CustomerLookup.tsx
+A	src/components/ui/popover.tsx
+A	src/lib/salesforce.ts

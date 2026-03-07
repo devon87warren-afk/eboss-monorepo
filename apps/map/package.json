@@ -1,0 +1,48 @@
+{
+  "name": "@eboss/map",
+  "version": "1.0.0",
+  "description": "ANA EBOSS Site Planner - Generator Asset Tracking",
+  "private": true,
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:firebase dev:server",
+    "dev:firebase": "firebase emulators:start --only auth,functions,firestore,storage,hosting",
+    "dev:server": "python3 -m http.server 8080 || python -m http.server 8080",
+    "dev:node": "npx http-server -p 8080 -c-1",
+    "dev:emulators": "firebase emulators:start",
+    "dev:functions": "cd functions && npm run serve",
+    "builder": "node scripts/open-builder.js",
+    "builder:setup": "echo 'Add your API key: localStorage.setItem(\"builder_api_key\", \"YOUR_KEY\")'",
+    "build": "echo 'No build step required for static files'",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:functions": "cd functions && npm run deploy",
+    "deploy:rules": "firebase deploy --only firestore:rules,storage:rules",
+    "deploy:indexes": "firebase deploy --only firestore:indexes",
+    "logs": "firebase functions:log",
+    "test": "cd functions && npm test",
+    "test:emulators": "firebase emulators:exec --only firestore 'cd functions && npm test'",
+    "lint": "eslint js/",
+    "seed": "node scripts/seed-data.js",
+    "setup": "npm install && cd functions && npm install",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "open": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "firebase",
+    "google-maps",
+    "generator-tracking",
+    "asset-management",
+    "builder-io"
+  ],
+  "author": "ANA Corp",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "builder": "^5.0.0"
+  }
+}

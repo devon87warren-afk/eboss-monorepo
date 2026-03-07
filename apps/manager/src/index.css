@@ -1,0 +1,154 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+@import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", "system-ui", "sans-serif";
+  --font-mono: "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace";
+  --radius: 0.5rem;
+
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-input: var(--input);
+}
+
+@layer base {
+  :root {
+    /* EBOSS "Trust & Authority" Design System */
+
+    /* Base Colors */
+    --background: #F8FAFC;
+    --foreground: #020617;
+
+    --card: #FFFFFF;
+    --card-foreground: #020617;
+
+    --popover: #FFFFFF;
+    --popover-foreground: #020617;
+
+    /* Primary: Slate 900 (Professional) */
+    --primary: #0F172A;
+    --primary-foreground: #F8FAFC;
+
+    /* Secondary: Slate 700 */
+    --secondary: #334155;
+    --secondary-foreground: #F8FAFC;
+
+    /* Accent/CTA: Sky 700 */
+    --accent: #E0F2FE;
+    --accent-foreground: #0369A1;
+    --cta: #0369A1;
+
+    --muted: #F1F5F9;
+    --muted-foreground: #64748B;
+
+    --destructive: #EF4444;
+    --destructive-foreground: #F8FAFC;
+
+    --border: #E2E8F0;
+    --input: #E2E8F0;
+    --ring: #0F172A;
+
+    --radius: 0.5rem;
+    /* 8px */
+
+    /* Design System Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+    /* Charts */
+    --chart-1: #0369A1;
+    --chart-2: #334155;
+    --chart-3: #0F172A;
+    --chart-4: #64748B;
+    --chart-5: #E2E8F0;
+  }
+
+  .dark {
+    /* Dark Mode: Slate 950 Base */
+    --background: #020617;
+    --foreground: #F8FAFC;
+
+    --card: #0F172A;
+    --card-foreground: #F8FAFC;
+
+    --popover: #0F172A;
+    --popover-foreground: #F8FAFC;
+
+    --primary: #F8FAFC;
+    --primary-foreground: #0F172A;
+
+    --secondary: #1E293B;
+    --secondary-foreground: #F8FAFC;
+
+    --accent: #1E293B;
+    --accent-foreground: #38BDF8;
+    --cta: #38BDF8;
+
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+
+    --destructive: #7F1D1D;
+    --destructive-foreground: #F8FAFC;
+
+    --border: #1E293B;
+    --input: #1E293B;
+    --ring: #CBD5E1;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Clean industrial texture */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .btn-primary {
+    @apply bg-[var(--cta)] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:opacity-90 hover:-translate-y-[1px] shadow-md hover:shadow-lg cursor-pointer;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1 bg-card border border-border;
+  }
+}

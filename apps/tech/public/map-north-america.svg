@@ -1,0 +1,13 @@
+<svg viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Abstract North America Silhouette -->
+  <path d="M250 100 L350 80 L500 50 L600 80 L650 150 L600 250 L500 350 L450 450 L350 500 L300 450 L250 350 L200 300 L150 200 L200 150 Z" fill="#334155" opacity="0.3"/>
+  
+  <!-- US Outline (Rough) -->
+  <path d="M200 200 L600 200 L550 400 L250 400 Z" stroke="#475569" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  
+  <!-- Grid Dots -->
+  <pattern id="grid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="1" fill="#475569" opacity="0.5"/>
+  </pattern>
+  <rect width="800" height="600" fill="url(#grid)"/>
+</svg>

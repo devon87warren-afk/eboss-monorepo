@@ -1,0 +1,424 @@
+commit 808cf604e92e123b275c5c6702109275b2c852bd
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 30 12:36:46 2026 -0800
+
+    feat: Add Salesforce customer lookup functionality, including a dedicated test page, UI component, and server actions.
+
+D	.claude/settings.local.json
+M	.gitignore
+D	.vscode/settings.json
+M	package-lock.json
+M	package.json
+A	src/app/config/page.tsx
+A	src/app/logs/page.tsx
+A	src/app/monitor/page.tsx
+A	src/components/navigation/BottomNav.tsx
+A	src/components/ui/command.tsx
+A	src/hooks/useAssets.ts
+A	src/hooks/useConfig.ts
+A	src/hooks/useLogs.ts
+A	src/hooks/useTelemetry.ts
+A	src/lib/mock-data.ts
+A	src/types/dashboard.ts
+
+commit 1a79cee778001e395de8089a8b1040886bdb9aec
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Sat Jan 24 01:18:48 2026 -0800
+
+    feat: update savings workflow and add brand assets
+
+M	.vscode/settings.json
+M	package-lock.json
+M	package.json
+A	src/app/actions/salesforce-actions.ts
+A	src/app/test-salesforce/page.tsx
+A	src/components/salesforce/CustomerLookup.tsx
+A	src/components/ui/popover.tsx
+A	src/lib/salesforce.ts
+
+commit afff73abfe47b898f5b4ea0e2f5083aa17baabe2
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:54:19 2026 -0800
+
+    feat: update savings workflow and add brand assets
+
+M	package-lock.json
+M	package.json
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/125kVA/EBOSS-125-50-ANGLED-1-VIEW.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/125kVA/EBOSS-125-50-ANGLED-2-VIEW.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/125kVA/EBOSS-125-50-SIDE-VIEW.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/220kVA/EBOSS-220KVA-HYBRID-SYSTEM-ANGLED-1 1.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/220kVA/EBOSS-220KVA-HYBRID-SYSTEM-SIDE-1.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/220kVA/EBOSS-220kVA-POWER-MODULE-ANGLED-VIEW.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/220kVA/EBOSS-220kVA-POWER-MODULE-SIDE-VIEW 6.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/25kVA/EBOSS-25KVA-HYBRIDSYSTEM-ANGLED-VIEW-EDIT.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/400kVA/DSC03315.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/400kVA/DSC03328.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/400kVA/DSC03341.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/400kVA/DSC03345.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/70kVA/EBOSS70kVA-ANGLED-VIEW 1.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/70kVA/EBOSS70kVA-SIDE-VIEW.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/HYBRID SYSTEMS/EBOSS-25KVA-HYBRIDSYSTEM-ANGLED-VIEW-EDIT.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/POWER MODULES/125kVA/125-SKID.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/POWER MODULES/220kVA/EBOSS-220kVA-SKID.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/POWER MODULES/25kVA/EBOSS-25kVA-POWERMODULE-SKID.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/POWER MODULES/400kVA/EBOSS-400kVA-SKID-SIDE.png"
+A	"public/brand/equipment-photos/EBOSS\316\223\303\244\303\263 HYBRID ENERGY SYSTEMS/POWER MODULES/70kVA/EBOSS70kVA-POWER-MODULE-SKID.png"
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-BUFFER-WHITE-TAGLINE.png
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-BUFFER-WHITE-TAGLINE.svg
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-FULL-COLOR-TAGLINE.png
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-FULL-COLOR-TAGLINE.svg
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-METAL-BLACK-TAGLINE.png
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-METAL-BLACK-TAGLINE.svg
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-METAL-WHITE-TAGLINE.png
+A	public/brand/logos-ana/ANA-HORIZONTAL-LOGO-METAL-WHITE-TAGLINE.svg
+A	public/brand/logos-ana/ANA-VERTICAL-LOGO-METAL-TAGLINE.png
+A	public/brand/logos-ana/ANA-VERTICAL-LOGO-METAL-TAGLINE.svg
+A	public/brand/logos-ana/logo-full.png
+A	public/brand/logos-ana/logo-icon.png
+A	src/app/actions/savings-actions.ts
+M	src/app/components/dashboard/FleetMap.tsx
+M	src/app/components/dashboard/SavingsCalculator.tsx
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/TravelOptimizer.tsx
+M	src/app/page.tsx
+M	src/components/ui/button.tsx
+A	src/lib/supabase/client.ts
+A	src/lib/supabase/server.ts
+A	supabase/migrations/20260121_create_savings_entries.sql
+
+commit f88813f2ccb2d02f15112cf3f1ec1c6e7dff5b50
+Merge: 473a0a1 b2b5a47
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:48:24 2026 -0800
+
+    Merge branch 'fix/code-verification' of https://github.com/devon87warren-afk/EBOSS_Tech_App into fix/code-verification
+
+commit 473a0a1a1970c9073ec78789778b1b4e44e733cb
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:48:20 2026 -0800
+
+    feat: add SavingsCalculator component and update travel-related terminology
+
+A	.claude/settings.local.json
+A	.vscode/settings.json
+M	package-lock.json
+M	package.json
+A	public/map-north-america.svg
+A	src/app/components/dashboard/SavingsCalculator.tsx
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/TravelOptimizer.tsx
+M	src/app/page.tsx
+M	src/app/travel/page.tsx
+
+commit b2b5a47d11c00c1927877b46471a67d5db3b68d6
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Wed Jan 21 14:32:18 2026 -0800
+
+    chore: rename app to EBOSS Tech App
+
+M	README.md
+M	package.json
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/CommissioningChecklist.tsx
+M	src/app/layout.tsx
+M	src/app/lib/mock-data.ts
+
+commit f1d566676ed95105628aceb4fe31415ca95e0934
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Wed Jan 21 13:25:59 2026 -0800
+
+    fix: resolve lint errors and verify codebase
+
+A	.agent/.shared/ui-ux-pro-max/data/charts.csv
+A	.agent/.shared/ui-ux-pro-max/data/colors.csv
+A	.agent/.shared/ui-ux-pro-max/data/icons.csv
+A	.agent/.shared/ui-ux-pro-max/data/landing.csv
+A	.agent/.shared/ui-ux-pro-max/data/products.csv
+A	.agent/.shared/ui-ux-pro-max/data/prompts.csv
+A	.agent/.shared/ui-ux-pro-max/data/react-performance.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/flutter.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/html-tailwind.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/jetpack-compose.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/nextjs.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/nuxt-ui.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/nuxtjs.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/react-native.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/react.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/shadcn.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/svelte.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/swiftui.csv
+A	.agent/.shared/ui-ux-pro-max/data/stacks/vue.csv
+A	.agent/.shared/ui-ux-pro-max/data/styles.csv
+A	.agent/.shared/ui-ux-pro-max/data/typography.csv
+A	.agent/.shared/ui-ux-pro-max/data/ui-reasoning.csv
+A	.agent/.shared/ui-ux-pro-max/data/ux-guidelines.csv
+A	.agent/.shared/ui-ux-pro-max/data/web-interface.csv
+A	.agent/.shared/ui-ux-pro-max/scripts/core.py
+A	.agent/.shared/ui-ux-pro-max/scripts/design_system.py
+A	.agent/.shared/ui-ux-pro-max/scripts/search.py
+A	.agent/ARCHITECTURE.md
+A	.agent/agents/backend-specialist.md
+A	.agent/agents/database-architect.md
+A	.agent/agents/debugger.md
+A	.agent/agents/devops-engineer.md
+A	.agent/agents/documentation-writer.md
+A	.agent/agents/explorer-agent.md
+A	.agent/agents/frontend-specialist.md
+A	.agent/agents/game-developer.md
+A	.agent/agents/mobile-developer.md
+A	.agent/agents/orchestrator.md
+A	.agent/agents/penetration-tester.md
+A	.agent/agents/performance-optimizer.md
+A	.agent/agents/project-planner.md
+A	.agent/agents/security-auditor.md
+A	.agent/agents/seo-specialist.md
+A	.agent/agents/test-engineer.md
+A	.agent/rules/GEMINI.md
+A	.agent/skills/api-patterns/SKILL.md
+A	.agent/skills/api-patterns/api-style.md
+A	.agent/skills/api-patterns/auth.md
+A	.agent/skills/api-patterns/documentation.md
+A	.agent/skills/api-patterns/graphql.md
+A	.agent/skills/api-patterns/rate-limiting.md
+A	.agent/skills/api-patterns/response.md
+A	.agent/skills/api-patterns/rest.md
+A	.agent/skills/api-patterns/scripts/api_validator.py
+A	.agent/skills/api-patterns/security-testing.md
+A	.agent/skills/api-patterns/trpc.md
+A	.agent/skills/api-patterns/versioning.md
+A	.agent/skills/app-builder/SKILL.md
+A	.agent/skills/app-builder/agent-coordination.md
+A	.agent/skills/app-builder/feature-building.md
+A	.agent/skills/app-builder/project-detection.md
+A	.agent/skills/app-builder/scaffolding.md
+A	.agent/skills/app-builder/tech-stack.md
+A	.agent/skills/app-builder/templates/SKILL.md
+A	.agent/skills/app-builder/templates/astro-static/TEMPLATE.md
+A	.agent/skills/app-builder/templates/chrome-extension/TEMPLATE.md
+A	.agent/skills/app-builder/templates/cli-tool/TEMPLATE.md
+A	.agent/skills/app-builder/templates/electron-desktop/TEMPLATE.md
+A	.agent/skills/app-builder/templates/express-api/TEMPLATE.md
+A	.agent/skills/app-builder/templates/flutter-app/TEMPLATE.md
+A	.agent/skills/app-builder/templates/monorepo-turborepo/TEMPLATE.md
+A	.agent/skills/app-builder/templates/nextjs-fullstack/TEMPLATE.md
+A	.agent/skills/app-builder/templates/nextjs-saas/TEMPLATE.md
+A	.agent/skills/app-builder/templates/nextjs-static/TEMPLATE.md
+A	.agent/skills/app-builder/templates/nuxt-app/TEMPLATE.md
+A	.agent/skills/app-builder/templates/python-fastapi/TEMPLATE.md
+A	.agent/skills/app-builder/templates/react-native-app/TEMPLATE.md
+A	.agent/skills/architecture/SKILL.md
+A	.agent/skills/architecture/context-discovery.md
+A	.agent/skills/architecture/examples.md
+A	.agent/skills/architecture/pattern-selection.md
+A	.agent/skills/architecture/patterns-reference.md
+A	.agent/skills/architecture/trade-off-analysis.md
+A	.agent/skills/bash-linux/SKILL.md
+A	.agent/skills/behavioral-modes/SKILL.md
+A	.agent/skills/brainstorming/SKILL.md
+A	.agent/skills/brainstorming/dynamic-questioning.md
+A	.agent/skills/clean-code/SKILL.md
+A	.agent/skills/code-review-checklist/SKILL.md
+A	.agent/skills/database-design/SKILL.md
+A	.agent/skills/database-design/database-selection.md
+A	.agent/skills/database-design/indexing.md
+A	.agent/skills/database-design/migrations.md
+A	.agent/skills/database-design/optimization.md
+A	.agent/skills/database-design/orm-selection.md
+A	.agent/skills/database-design/schema-design.md
+A	.agent/skills/database-design/scripts/schema_validator.py
+A	.agent/skills/deployment-procedures/SKILL.md
+A	.agent/skills/doc.md
+A	.agent/skills/docker-expert/SKILL.md
+A	.agent/skills/documentation-templates/SKILL.md
+A	.agent/skills/frontend-design/SKILL.md
+A	.agent/skills/frontend-design/animation-guide.md
+A	.agent/skills/frontend-design/color-system.md
+A	.agent/skills/frontend-design/decision-trees.md
+A	.agent/skills/frontend-design/motion-graphics.md
+A	.agent/skills/frontend-design/scripts/accessibility_checker.py
+A	.agent/skills/frontend-design/scripts/ux_audit.py
+A	.agent/skills/frontend-design/typography-system.md
+A	.agent/skills/frontend-design/ux-psychology.md
+A	.agent/skills/frontend-design/visual-effects.md
+A	.agent/skills/game-development/2d-games/SKILL.md
+A	.agent/skills/game-development/3d-games/SKILL.md
+A	.agent/skills/game-development/SKILL.md
+A	.agent/skills/game-development/game-art/SKILL.md
+A	.agent/skills/game-development/game-audio/SKILL.md
+A	.agent/skills/game-development/game-design/SKILL.md
+A	.agent/skills/game-development/mobile-games/SKILL.md
+A	.agent/skills/game-development/multiplayer/SKILL.md
+A	.agent/skills/game-development/pc-games/SKILL.md
+A	.agent/skills/game-development/vr-ar/SKILL.md
+A	.agent/skills/game-development/web-games/SKILL.md
+A	.agent/skills/geo-fundamentals/SKILL.md
+A	.agent/skills/geo-fundamentals/scripts/geo_checker.py
+A	.agent/skills/i18n-localization/SKILL.md
+A	.agent/skills/i18n-localization/scripts/i18n_checker.py
+A	.agent/skills/lint-and-validate/SKILL.md
+A	.agent/skills/lint-and-validate/scripts/lint_runner.py
+A	.agent/skills/lint-and-validate/scripts/type_coverage.py
+A	.agent/skills/mcp-builder/SKILL.md
+A	.agent/skills/mobile-design/SKILL.md
+A	.agent/skills/mobile-design/decision-trees.md
+A	.agent/skills/mobile-design/mobile-backend.md
+A	.agent/skills/mobile-design/mobile-color-system.md
+A	.agent/skills/mobile-design/mobile-debugging.md
+A	.agent/skills/mobile-design/mobile-design-thinking.md
+A	.agent/skills/mobile-design/mobile-navigation.md
+A	.agent/skills/mobile-design/mobile-performance.md
+A	.agent/skills/mobile-design/mobile-testing.md
+A	.agent/skills/mobile-design/mobile-typography.md
+A	.agent/skills/mobile-design/platform-android.md
+A	.agent/skills/mobile-design/platform-ios.md
+A	.agent/skills/mobile-design/scripts/mobile_audit.py
+A	.agent/skills/mobile-design/touch-psychology.md
+A	.agent/skills/nestjs-expert/SKILL.md
+A	.agent/skills/nextjs-best-practices/SKILL.md
+A	.agent/skills/nodejs-best-practices/SKILL.md
+A	.agent/skills/parallel-agents/SKILL.md
+A	.agent/skills/performance-profiling/SKILL.md
+A	.agent/skills/performance-profiling/scripts/lighthouse_audit.py
+A	.agent/skills/plan-writing/SKILL.md
+A	.agent/skills/powershell-windows/SKILL.md
+A	.agent/skills/prisma-expert/SKILL.md
+A	.agent/skills/python-patterns/SKILL.md
+A	.agent/skills/react-patterns/SKILL.md
+A	.agent/skills/red-team-tactics/SKILL.md
+A	.agent/skills/seo-fundamentals/SKILL.md
+A	.agent/skills/seo-fundamentals/scripts/seo_checker.py
+A	.agent/skills/server-management/SKILL.md
+A	.agent/skills/systematic-debugging/SKILL.md
+A	.agent/skills/tailwind-patterns/SKILL.md
+A	.agent/skills/tdd-workflow/SKILL.md
+A	.agent/skills/testing-patterns/SKILL.md
+A	.agent/skills/testing-patterns/scripts/test_runner.py
+A	.agent/skills/typescript-expert/SKILL.md
+A	.agent/skills/typescript-expert/references/tsconfig-strict.json
+A	.agent/skills/typescript-expert/references/typescript-cheatsheet.md
+A	.agent/skills/typescript-expert/references/utility-types.ts
+A	.agent/skills/typescript-expert/scripts/ts_diagnostic.py
+A	.agent/skills/ui-ux-pro-max/SKILL.md
+A	.agent/skills/ui-ux-pro-max/data/charts.csv
+A	.agent/skills/ui-ux-pro-max/data/colors.csv
+A	.agent/skills/ui-ux-pro-max/data/icons.csv
+A	.agent/skills/ui-ux-pro-max/data/landing.csv
+A	.agent/skills/ui-ux-pro-max/data/products.csv
+A	.agent/skills/ui-ux-pro-max/data/prompts.csv
+A	.agent/skills/ui-ux-pro-max/data/react-performance.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/flutter.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/html-tailwind.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/nextjs.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/nuxt-ui.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/nuxtjs.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/react-native.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/react.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/shadcn.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/svelte.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/swiftui.csv
+A	.agent/skills/ui-ux-pro-max/data/stacks/vue.csv
+A	.agent/skills/ui-ux-pro-max/data/styles.csv
+A	.agent/skills/ui-ux-pro-max/data/typography.csv
+A	.agent/skills/ui-ux-pro-max/data/ui-reasoning.csv
+A	.agent/skills/ui-ux-pro-max/data/ux-guidelines.csv
+A	.agent/skills/ui-ux-pro-max/data/web-interface.csv
+A	.agent/skills/ui-ux-pro-max/scripts/core.py
+A	.agent/skills/ui-ux-pro-max/scripts/design_system.py
+A	.agent/skills/ui-ux-pro-max/scripts/search.py
+A	.agent/skills/vulnerability-scanner/SKILL.md
+A	.agent/skills/vulnerability-scanner/checklists.md
+A	.agent/skills/vulnerability-scanner/scripts/security_scan.py
+A	.agent/skills/webapp-testing/SKILL.md
+A	.agent/skills/webapp-testing/scripts/playwright_runner.py
+A	.agent/workflows/brainstorm.md
+A	.agent/workflows/create.md
+A	.agent/workflows/debug.md
+A	.agent/workflows/deploy.md
+A	.agent/workflows/enhance.md
+A	.agent/workflows/orchestrate.md
+A	.agent/workflows/plan.md
+A	.agent/workflows/preview.md
+A	.agent/workflows/status.md
+A	.agent/workflows/sync-chats.md
+A	.agent/workflows/test.md
+A	.agent/workflows/ui-ux-pro-max.md
+A	components.json
+M	eslint.config.mjs
+A	lint_report.txt
+M	package-lock.json
+M	package.json
+M	src/app/components/dashboard/ActionCenter.tsx
+M	src/app/components/dashboard/FleetMap.tsx
+M	src/app/components/dashboard/StatsOverview.tsx
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/CommissioningChecklist.tsx
+M	src/app/components/workflows/ExpenseCamera.tsx
+M	src/app/components/workflows/TravelOptimizer.tsx
+M	src/app/expenses/page.tsx
+M	src/app/globals.css
+M	src/app/jobs/page.tsx
+M	src/app/layout.tsx
+M	src/app/lib/mock-data.ts
+M	src/app/page.tsx
+M	src/app/travel/page.tsx
+A	src/components/ui/avatar.tsx
+A	src/components/ui/badge.tsx
+A	src/components/ui/button.tsx
+A	src/components/ui/card.tsx
+A	src/components/ui/checkbox.tsx
+A	src/components/ui/dialog.tsx
+A	src/components/ui/input.tsx
+A	src/components/ui/label.tsx
+A	src/components/ui/separator.tsx
+A	src/components/ui/sheet.tsx
+A	src/lib/utils.ts
+
+commit 8707b5ebe3b592153d374dc215f78fe5f47d7009
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Mon Jan 19 18:27:59 2026 -0800
+
+    feat: Initialize ANA Mobilizer application with core layout, global styles, and dashboard/workflow components.
+
+M	package-lock.json
+M	package.json
+A	public/brand/logo-full.png
+A	public/brand/logo-icon.png
+A	src/app/components/dashboard/ActionCenter.tsx
+A	src/app/components/dashboard/FleetMap.tsx
+A	src/app/components/dashboard/StatsOverview.tsx
+A	src/app/components/ui/Sidebar.tsx
+A	src/app/components/workflows/CommissioningChecklist.tsx
+A	src/app/components/workflows/ExpenseCamera.tsx
+A	src/app/components/workflows/TravelOptimizer.tsx
+A	src/app/expenses/page.tsx
+M	src/app/globals.css
+A	src/app/jobs/page.tsx
+M	src/app/layout.tsx
+A	src/app/lib/mock-data.ts
+M	src/app/page.tsx
+A	src/app/travel/page.tsx
+
+commit 54a44c057005ef32263986fa64cbc57cc97f1773
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Mon Jan 19 09:39:11 2026 -0800
+
+    Initial commit from Create Next App
+
+A	.gitignore
+A	README.md
+A	eslint.config.mjs
+A	next.config.ts
+A	package-lock.json
+A	package.json
+A	postcss.config.mjs
+A	public/file.svg
+A	public/globe.svg
+A	public/next.svg
+A	public/vercel.svg
+A	public/window.svg
+A	src/app/favicon.ico
+A	src/app/globals.css
+A	src/app/layout.tsx
+A	src/app/page.tsx
+A	tsconfig.json

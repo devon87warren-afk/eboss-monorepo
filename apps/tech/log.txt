@@ -1,0 +1,9 @@
+808cf604e92e123b275c5c6702109275b2c852bd feat: Add Salesforce customer lookup functionality, including a dedicated test page, UI component, and server actions.
+1a79cee778001e395de8089a8b1040886bdb9aec feat: update savings workflow and add brand assets
+afff73abfe47b898f5b4ea0e2f5083aa17baabe2 feat: update savings workflow and add brand assets
+f88813f2ccb2d02f15112cf3f1ec1c6e7dff5b50 Merge branch 'fix/code-verification' of https://github.com/devon87warren-afk/EBOSS_Tech_App into fix/code-verification
+473a0a1a1970c9073ec78789778b1b4e44e733cb feat: add SavingsCalculator component and update travel-related terminology
+b2b5a47d11c00c1927877b46471a67d5db3b68d6 chore: rename app to EBOSS Tech App
+f1d566676ed95105628aceb4fe31415ca95e0934 fix: resolve lint errors and verify codebase
+8707b5ebe3b592153d374dc215f78fe5f47d7009 feat: Initialize ANA Mobilizer application with core layout, global styles, and dashboard/workflow components.
+54a44c057005ef32263986fa64cbc57cc97f1773 Initial commit from Create Next App

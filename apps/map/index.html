@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MapSet — Asset Planning through an interactive map</title>
+  <meta name="description" content="MapSet. Asset Planning through an interactive map — show current assets and proposed changes to help site planners visualize and contextualize pain points, needs, and wants.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/photo-gallery.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="js/config.js"></script>
+  <script>
+    // Fetch Firebase config + Maps API key from Secret Manager via Cloud Function.
+    // Stored in window.__appConfigPromise so js/app.js can await it before init.
+    // Uses EBOSSConfig to determine emulator vs production mode.
+    const _configUrl = (typeof EBOSSConfig !== 'undefined' && EBOSSConfig.configUrl)
+      ? EBOSSConfig.configUrl
+      : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        ? "http://127.0.0.1:5001/openai-mapset-eboss-map/us-central1/getAppConfig"
+        : "/api/config");
+    const _configUrls = Array.from(new Set([
+      _configUrl,
+      "/api/config"
+    ])).filter(Boolean);
+
+    async function _fetchAppConfig() {
+      const _errors = [];
+      const PER_REQUEST_TIMEOUT = 8000; // ms
+      for (const _url of _configUrls) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort('timeout'), PER_REQUEST_TIMEOUT);
+        try {
+          const _resp = await fetch(_url, { cache: "no-store", signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (!_resp.ok) {
+            throw new Error("Config fetch failed (" + _url + "): " + _resp.status);
+          }
+          return await _resp.json();
+        } catch (_err) {
+          clearTimeout(timeoutId);
+          const isTimeout = (_err && _err.name === 'AbortError') || controller?.signal?.reason === 'timeout';
+          const message = isTimeout ? 'timeout' : (_err && _err.message) || String(_err);
+          _errors.push({ url: _url, message });
+          console.warn("[EBOSS] App config fetch attempt failed:", _url, _err);
+        }
+      }
+      const _detail = _errors.map(function(e) { return e.url + " \u2192 " + e.message; }).join("; ");
+      throw new Error("Unable to load app config after " + _errors.length + " attempt(s): " + _detail);
+    }
+
+    window.__appConfigPromise = _fetchAppConfig()
+      .then(function(cfg) {
+        // Register Google Maps deferred loader with the fetched key
+        (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.googleapis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+          key: cfg.googleMapsApiKey,
+          v: "weekly"
+        });
+        return cfg;
+      })
+      .catch(function(err) {
+        console.error("[EBOSS] App config load failed:", err);
+      });
+  </script>
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/drawing.js"></script>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <aside id="side-panel" class="open">
+    <div class="panel-header">
+        <h2>On-Site Generators</h2>
+        <div id="project-filter-container" class="hidden">
+          <label for="project-selector">Filter by Project:</label>
+          <select id="project-selector">
+            <option value="">All Projects</option>
+          </select>
+        </div>
+        <div id="stats-bar">
+          <div class="stat">
+            <span class="stat-value" id="total-kw">0</span>
+            <span class="stat-label">Total kW</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="unit-count">0</span>
+            <span class="stat-label">Units</span>
+          </div>
+        </div>
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search generators...">
+            <button id="search-button"><i class="material-icons">search</i></button>
+        </div>
+        <div id="filter-sort-row">
+          <div id="filter-chips">
+            <button class="filter-chip" data-filter="with-photos" title="Has photo">
+              <i class="material-icons">photo</i>
+            </button>
+            <button class="filter-chip" data-filter="high-capacity" title="High capacity (≥100 kW)">
+              <i class="material-icons">bolt</i>
+            </button>
+            <button class="filter-chip" data-filter="no-id" title="Missing ID">
+              <i class="material-icons">help_outline</i>
+            </button>
+          </div>
+          <select id="sort-select" title="Sort generators">
+            <option value="default">Sort: Default</option>
+            <option value="id">Sort: ID</option>
+            <option value="capacity">Sort: Capacity</option>
+          </select>
+        </div>
+    </div>
+
+    <!-- Site Switcher Section -->
+    <div id="site-switcher-section" class="site-switcher">
+      <div class="site-selector-group">
+        <label for="site-selector-button" class="site-label">Current Site:</label>
+        <div class="site-selector-container">
+          <button
+            id="site-selector-button"
+            class="site-selector-button"
+            aria-haspopup="listbox"
+            aria-controls="site-selector-listbox"
+            aria-expanded="false"
+          >
+            <span id="site-selector-current">No Site Selected</span>
+            <i class="material-icons">expand_more</i>
+          </button>
+          <div
+            id="site-selector-listbox"
+            class="site-selector-listbox hidden"
+            role="listbox"
+            aria-label="Select a site"
+          ></div>
+        </div>
+      </div>
+      <div class="site-actions">
+        <button id="btn-create-site" class="site-action-btn" title="Create new site">
+          <i class="material-icons">add</i>
+          <span>New</span>
+        </button>
+        <button id="btn-manage-sites" class="site-action-btn" title="Manage sites">
+          <i class="material-icons">settings</i>
+          <span>Manage</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Overlay shown when no site is selected -->
+    <div id="no-site-overlay" class="no-site-overlay">
+      <div class="no-site-message">
+        <h3>No Site Selected</h3>
+        <p>Create or select a site to begin tracking generators.</p>
+        <button id="btn-create-site-overlay" class="primary">Create Site</button>
+      </div>
+    </div>
+
+    <ul id="asset-list"></ul>
+    <div class="panel-footer">
+        <button id="cost-analysis-button" class="primary"><i class="material-icons">savings</i> Cost Analysis</button>
+        <button id="view-photos-button"><i class="material-icons">photo_library</i> View Photos</button>
+        <button id="save-db-button"><i class="material-icons">download</i> Export Data</button>
+        <button id="mass-upload-button"><i class="material-icons">upload_file</i> Mass Upload</button>
+        <button id="settings-button"><i class="material-icons">settings</i> Settings</button>
+        <button id="annotations-button"><i class="material-icons">edit</i> Annotations Mode</button>
+    </div>
+    <!-- Hidden multi-file input for mass upload -->
+    <input type="file" id="mass-upload-input" accept="image/*" multiple style="display:none">
+  </aside>
+  <button id="toggle-panel-button" class="open">
+    <i class="material-icons">chevron_left</i>
+  </button>
+
+  <!-- Drawing Toolbar -->
+  <div id="drawing-toolbar" class="hidden">
+    <button class="draw-tool-btn active" data-mode="cursor" title="Select/Pan" aria-label="Select/Pan">
+      <i class="material-icons">pan_tool</i>
+    </button>
+    <button class="draw-tool-btn" data-mode="polyline" title="Draw Line" aria-label="Draw Line">
+      <i class="material-icons">timeline</i>
+    </button>
+    <button class="draw-tool-btn" data-mode="polygon" title="Draw Area" aria-label="Draw Area">
+      <i class="material-icons">pentagon</i>
+    </button>
+    <button class="draw-tool-btn" data-mode="rectangle" title="Draw Rectangle" aria-label="Draw Rectangle">
+      <i class="material-icons">crop_square</i>
+    </button>
+    <button class="draw-tool-btn" data-mode="circle" title="Draw Circle" aria-label="Draw Circle">
+      <i class="material-icons">radio_button_unchecked</i>
+    </button>
+    <button class="draw-tool-btn" data-mode="text" title="Add Text Label" aria-label="Add Text Label">
+      <i class="material-icons">text_fields</i>
+    </button>
+    <div class="toolbar-divider"></div>
+    <button id="clear-drawings-button" title="Delete all annotations" aria-label="Delete all annotations">
+      <i class="material-icons">delete_sweep</i>
+    </button>
+  </div>
+
+  <!-- Drawing shape properties dialog -->
+  <div id="drawing-dialog-overlay" class="dialog-overlay hidden" aria-hidden="true">
+    <div id="drawing-dialog" role="dialog" aria-modal="true" aria-labelledby="drawing-dialog-title" tabindex="-1">
+      <h3 id="drawing-dialog-title">Annotation Properties</h3>
+      <div class="input-group">
+        <label for="drawing-label-input">Label</label>
+        <input type="text" id="drawing-label-input" placeholder="e.g., Power Line 1">
+      </div>
+      <div class="input-group">
+        <label for="drawing-category-input">Category</label>
+        <select id="drawing-category-input">
+          <option value="existing">Existing</option>
+          <option value="proposed">Proposed</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="drawing-color-input">Color</label>
+        <input type="color" id="drawing-color-input" value="#ff0000">
+      </div>
+      <div class="input-group" id="stroke-weight-group">
+        <label for="drawing-stroke-input">Stroke Width (px)</label>
+        <input type="number" id="drawing-stroke-input" value="2" min="1" max="10">
+      </div>
+      <div class="dialog-buttons">
+        <button id="cancel-drawing-button">Cancel</button>
+        <button id="save-drawing-button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shape click context menu -->
+  <div id="shape-context-menu" class="hidden">
+    <button id="edit-shape-button"><i class="material-icons">edit</i> Edit</button>
+    <button id="delete-shape-button"><i class="material-icons">delete</i> Delete</button>
+  </div>
+
+  <div id="input-dialog-overlay" class="dialog-overlay hidden">
+    <div id="input-dialog">
+      <h3 id="dialog-title">Add Generator</h3>
+      <div class="input-group">
+        <label for="project-input">Project/Customer (optional)</label>
+        <input type="text" id="project-input" placeholder="Project/Customer (optional)">
+      </div>
+      <div class="input-group">
+        <label for="asset-number-input">Generator ID</label>
+        <input type="text" id="asset-number-input" placeholder="Generator ID (e.g., Gen A)">
+      </div>
+      <div class="input-group">
+        <label for="asset-kw-input">Capacity (kW)</label>
+        <input type="number" id="asset-kw-input" placeholder="Capacity (kW)">
+      </div>
+      <div class="coordinate-inputs">
+        <div class="input-group">
+          <label for="asset-lat-input">Latitude</label>
+          <input type="number" id="asset-lat-input" placeholder="Latitude" step="any">
+        </div>
+        <div class="input-group">
+          <label for="asset-lng-input">Longitude</label>
+          <input type="number" id="asset-lng-input" placeholder="Longitude" step="any">
+        </div>
+      </div>
+      <details id="footprint-section">
+        <summary class="hint">Physical dimensions (optional)</summary>
+        <div class="footprint-inputs">
+          <div class="coordinate-inputs">
+            <div class="input-group">
+              <label for="asset-width-input">Width (m)</label>
+              <input type="number" id="asset-width-input" placeholder="Width (m)" step="0.1">
+            </div>
+            <div class="input-group">
+              <label for="asset-length-input">Length (m)</label>
+              <input type="number" id="asset-length-input" placeholder="Length (m)" step="0.1">
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="asset-orient-input">Orientation (degrees)</label>
+            <input type="number" id="asset-orient-input" placeholder="Orientation (0-360°)" step="1" min="0" max="360">
+          </div>
+        </div>
+      </details>
+      <div class="input-group">
+        <label for="asset-photo-input">Upload Photo</label>
+        <input type="file" id="asset-photo-input" accept="image/*" capture="environment">
+        <p class="hint">Photo GPS will auto-populate coordinates</p>
+      </div>
+      <img id="photo-preview" class="hidden"/>
+      <div class="dialog-buttons">
+        <button id="cancel-button">Cancel</button>
+        <button id="save-button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding Dialog -->
+  <div id="onboarding-overlay" class="dialog-overlay hidden">
+    <div id="onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+      <h3 id="onboarding-title">How would you like to get started?</h3>
+
+      <!-- 3-option picker -->
+      <div id="onboarding-options" class="onboarding-options">
+        <button class="onboarding-option" id="onboarding-btn-address">
+          <i class="material-icons">place</i>
+          <div>
+            <strong>Create site from address</strong>
+            <span>Enter an address to center the map on your site</span>
+          </div>
+        </button>
+        <button class="onboarding-option" id="onboarding-btn-map">
+          <i class="material-icons">touch_app</i>
+          <div>
+            <strong>Click on map</strong>
+            <span>Tap anywhere on the map to place a generator</span>
+          </div>
+        </button>
+        <button class="onboarding-option" id="onboarding-btn-photo">
+          <i class="material-icons">photo_camera</i>
+          <div>
+            <strong>Upload photo with geotag</strong>
+            <span>Auto-detect location from photo GPS data</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Address form (shown when address option is selected) -->
+      <div id="onboarding-address-form" class="hidden">
+        <div class="input-group">
+          <label for="onboarding-site-name-input">Site Name (optional)</label>
+          <input type="text" id="onboarding-site-name-input" placeholder="e.g., MapSet Abilene">
+        </div>
+        <div class="input-group">
+          <label for="onboarding-address-input">Address or Coordinates</label>
+          <input type="text" id="onboarding-address-input" placeholder="e.g., 1234 Main St, Abilene TX">
+        </div>
+        <div class="dialog-buttons">
+          <button id="back-onboarding-button">← Back</button>
+          <button id="save-onboarding-button" class="primary">Set Location & Start</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cost-dialog-overlay" class="dialog-overlay hidden">
+    <div id="cost-dialog">
+      <h3>EBOSS Cost Analysis</h3>
+      <div class="cost-inputs">
+        <div class="input-group">
+          <label for="gallons-per-hour-input">Fuel consumption (gallons/hour):</label>
+          <input type="number" id="gallons-per-hour-input" value="5" step="0.1" min="0">
+        </div>
+        <div class="input-group">
+          <label for="hours-per-year-input">Annual runtime hours:</label>
+          <input type="number" id="hours-per-year-input" value="2000" step="100" min="0">
+        </div>
+        <div class="input-group">
+          <label for="fuel-cost-input">Fuel cost per gallon ($):</label>
+          <input type="number" id="fuel-cost-input" value="3.50" step="0.01" min="0">
+        </div>
+        <div class="input-group">
+          <label for="cost-reduction-input">EBOSS fuel reduction (%):</label>
+          <input type="number" id="cost-reduction-input" value="75" step="1" min="1" max="100">
+        </div>
+      </div>
+      <!-- Per-Asset Breakdown -->
+      <div class="cost-breakdown">
+        <h4>Per-Asset Breakdown</h4>
+        <table class="cost-table">
+          <thead>
+            <tr>
+              <th>Asset ID</th>
+              <th>Capacity (kW)</th>
+              <th>Annual Fuel Cost</th>
+              <th>EBOSS Cost</th>
+              <th>Annual Savings</th>
+            </tr>
+          </thead>
+          <tbody id="cost-breakdown-body">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Total Summary -->
+      <div class="cost-summary">
+        <h4>Project Totals</h4>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="label">Total Capacity</span>
+            <span class="value"><span id="total-capacity">0</span> kW</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Annual Fuel Cost</span>
+            <span class="value">$<span id="total-fuel-cost">0</span></span>
+          </div>
+          <div class="summary-item">
+            <span class="label">EBOSS Annual Cost</span>
+            <span class="value">$<span id="total-eboss-cost">0</span></span>
+          </div>
+          <div class="summary-item savings">
+            <span class="label">Annual Savings</span>
+            <span class="value">$<span id="total-savings">0</span></span>
+          </div>
+          <div class="summary-item savings">
+            <span class="label">3-Year Savings</span>
+            <span class="value">$<span id="three-year-savings">0</span></span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Recommended EBOSS Model</span>
+            <span class="value"><span id="recommended-model">—</span></span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Est. Payback Period</span>
+            <span class="value"><span id="payback-period">—</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="close-cost-button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Dialog -->
+  <div id="settings-dialog-overlay" class="dialog-overlay hidden">
+    <div id="settings-dialog">
+      <h3>Settings</h3>
+      <div class="input-group">
+        <p class="hint">AI asset naming is powered by a secure Cloud Function. No setup needed!</p>
+      </div>
+      <p id="ai-test-result" class="hint hidden"></p>
+      <div class="dialog-buttons test-row">
+        <button id="test-ai-button" type="button">Test AI Service</button>
+      </div>
+      <div class="dialog-buttons">
+        <button id="close-settings-button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Site Dialog -->
+  <div id="dialog-create-site-overlay" class="dialog-overlay hidden" aria-hidden="true">
+    <div id="dialog-create-site" role="dialog" aria-modal="true" aria-labelledby="dialog-create-site-title" tabindex="-1">
+      <h3 id="dialog-create-site-title">Create Site</h3>
+      <form id="form-create-site">
+        <div class="input-group">
+          <label for="site-name-input">Site Name *</label>
+          <input
+            type="text"
+            id="site-name-input"
+            name="site-name"
+            placeholder="e.g., Abilene Data Center"
+            maxlength="100"
+            required
+          >
+        </div>
+        <div class="input-group">
+          <label for="site-address-input">Address</label>
+          <input
+            type="text"
+            id="site-address-input"
+            name="site-address"
+            placeholder="e.g., 123 Tech Drive, Abilene, TX"
+          >
+        </div>
+        <div class="input-group">
+          <label for="site-lat-input">Latitude</label>
+          <input
+            type="number"
+            id="site-lat-input"
+            name="site-lat"
+            placeholder="e.g., 32.4487"
+            step="0.0001"
+          >
+        </div>
+        <div class="input-group">
+          <label for="site-lng-input">Longitude</label>
+          <input
+            type="number"
+            id="site-lng-input"
+            name="site-lng"
+            placeholder="e.g., -99.7331"
+            step="0.0001"
+          >
+        </div>
+        <div class="dialog-buttons">
+          <button type="submit" class="primary" id="btn-save-site">Save Site</button>
+          <button type="button" id="btn-cancel-create-site">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manage Sites Dialog -->
+  <div id="dialog-manage-sites-overlay" class="dialog-overlay hidden" aria-hidden="true">
+    <div id="dialog-manage-sites" role="dialog" aria-modal="true" aria-labelledby="dialog-manage-sites-title" tabindex="-1">
+      <h3 id="dialog-manage-sites-title">Manage Sites</h3>
+      <div class="sites-table-container">
+        <table id="sites-table" class="sites-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Address</th>
+              <th>Coordinates</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sites-table-body">
+          </tbody>
+        </table>
+      </div>
+      <div class="dialog-buttons">
+        <button id="btn-close-manage-sites" class="primary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Site Confirmation Dialog -->
+  <div id="dialog-delete-site-overlay" class="dialog-overlay hidden" aria-hidden="true">
+    <div id="dialog-delete-site" role="dialog" aria-modal="true" aria-labelledby="dialog-delete-site-title" tabindex="-1">
+      <h3 id="dialog-delete-site-title">Delete Site</h3>
+      <p id="delete-site-confirmation-text">
+        Are you sure you want to delete this site and all associated generators and drawings?
+      </p>
+      <div class="dialog-buttons">
+        <button id="btn-confirm-delete-site" class="danger">Delete Site</button>
+        <button id="btn-cancel-delete-site">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="status-message" class="hidden"></div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="hidden">
+    <div id="loading-spinner"></div>
+    <span id="loading-text">Processing...</span>
+  </div>
+
+  <!-- Undo toast -->
+  <div id="undo-toast" class="hidden">
+    <span id="undo-message"></span>
+    <button id="undo-button">Undo</button>
+  </div>
+
+  <!-- Mass Upload Progress Dialog -->
+  <div id="mass-upload-overlay" class="dialog-overlay hidden" aria-hidden="true">
+    <div id="mass-upload-dialog" role="dialog" aria-modal="true" aria-labelledby="mass-upload-title">
+      <h3 id="mass-upload-title">Mass Upload Progress</h3>
+      <p class="hint">Photos without GPS coordinates are skipped automatically.</p>
+      <div id="mass-upload-list" class="mass-upload-list"></div>
+      <div id="mass-upload-summary" class="mass-upload-summary hidden"></div>
+      <div class="dialog-buttons">
+        <button id="mass-upload-close" class="primary" disabled>Done</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Service Worker Registration for Offline Support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js?v=2')
+          .then(registration => console.log('[App] SW registered'))
+          .catch(err => console.warn('[App] SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

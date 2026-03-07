@@ -1,0 +1,31 @@
+commit f88813f2ccb2d02f15112cf3f1ec1c6e7dff5b50 (from 473a0a1a1970c9073ec78789778b1b4e44e733cb)
+Merge: 473a0a1 b2b5a47
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:48:24 2026 -0800
+
+    Merge branch 'fix/code-verification' of https://github.com/devon87warren-afk/EBOSS_Tech_App into fix/code-verification
+
+M	README.md
+M	package.json
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/CommissioningChecklist.tsx
+M	src/app/layout.tsx
+M	src/app/lib/mock-data.ts
+
+commit f88813f2ccb2d02f15112cf3f1ec1c6e7dff5b50 (from b2b5a47d11c00c1927877b46471a67d5db3b68d6)
+Merge: 473a0a1 b2b5a47
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 23 17:48:24 2026 -0800
+
+    Merge branch 'fix/code-verification' of https://github.com/devon87warren-afk/EBOSS_Tech_App into fix/code-verification
+
+A	.claude/settings.local.json
+A	.vscode/settings.json
+M	package-lock.json
+M	package.json
+A	public/map-north-america.svg
+A	src/app/components/dashboard/SavingsCalculator.tsx
+M	src/app/components/ui/Sidebar.tsx
+M	src/app/components/workflows/TravelOptimizer.tsx
+M	src/app/page.tsx
+M	src/app/travel/page.tsx

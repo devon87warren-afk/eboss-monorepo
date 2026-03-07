@@ -1,0 +1,37 @@
+node_modules/
+*.log
+.env
+.env.local
+firebase-debug.log
+.firebase/
+.DS_Store
+
+# BrainGrid and MCP configuration
+.braingrid/
+.mcp.json
+
+# Claude Code local settings (user-specific permissions and preferences)
+# Ignore per-user Claude local settings; keep non-local files trackable
+.claude/*.local.json
+
+# Temporary files and screenshots
+*.png
+CHATGPT_*.jpg
+firestore.indexes.json
+tmpclaude-*
+*.code-workspace
+
+# Jest configuration (local development)
+jest.config.cjs
+
+# Google Cloud service account keys (NEVER commit these!)
+*-key.json
+*service*.json
+openai-stargate-eboss-map-*.json
+# Local service account keys and Firebase project credentials (never commit)
+*-firebase-adminsdk-*.json
+# OpenAI credential filename patterns (broad enough for common variants)
+openai.json
+openai-*.json
+# Keep known non-secret config templates trackable
+!openai-config.json

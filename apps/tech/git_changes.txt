@@ -1,0 +1,22 @@
+commit 808cf604e92e123b275c5c6702109275b2c852bd
+Author: Devon Warren <devon87warren@gmail.com>
+Date:   Fri Jan 30 12:36:46 2026 -0800
+
+    feat: Add Salesforce customer lookup functionality, including a dedicated test page, UI component, and server actions.
+
+D	.claude/settings.local.json
+M	.gitignore
+D	.vscode/settings.json
+M	package-lock.json
+M	package.json
+A	src/app/config/page.tsx
+A	src/app/logs/page.tsx
+A	src/app/monitor/page.tsx
+A	src/components/navigation/BottomNav.tsx
+A	src/components/ui/command.tsx
+A	src/hooks/useAssets.ts
+A	src/hooks/useConfig.ts
+A	src/hooks/useLogs.ts
+A	src/hooks/useTelemetry.ts
+A	src/lib/mock-data.ts
+A	src/types/dashboard.ts

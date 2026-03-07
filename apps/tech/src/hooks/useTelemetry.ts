@@ -1,0 +1,54 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { telemetryReadings, performanceData, currentAsset } from '@/lib/mock-data';
+import type { TelemetryReading, PerformanceData, Asset } from '@/types/dashboard';
+
+interface UseTelemetryReturn {
+  readings: TelemetryReading[];
+  performance: PerformanceData[];
+  asset: Asset;
+  isUpdating: boolean;
+  lastUpdated: Date;
+  remoteOperationEnabled: boolean;
+  setRemoteOperationEnabled: (enabled: boolean) => void;
+}
+
+export function useTelemetry(assetId?: string): UseTelemetryReturn {
+  const [readings, setReadings] = useState<TelemetryReading[]>(telemetryReadings);
+  const [performance, setPerformance] = useState<PerformanceData[]>(performanceData);
+  const [isUpdating, setIsUpdating] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [remoteOperationEnabled, setRemoteOperationEnabled] = useState(true);
+
+  // Simulate real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsUpdating(true);
+
+      // Add small random variations to readings
+      setReadings((prev) =>
+        prev.map((reading) => ({
+          ...reading,
+          value: reading.value + (Math.random() - 0.5) * reading.value * 0.02,
+        }))
+      );
+
+      setLastUpdated(new Date());
+
+      setTimeout(() => setIsUpdating(false), 500);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return {
+    readings,
+    performance,
+    asset: currentAsset,
+    isUpdating,
+    lastUpdated,
+    remoteOperationEnabled,
+    setRemoteOperationEnabled,
+  };
+}

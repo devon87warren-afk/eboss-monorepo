@@ -1,0 +1,38 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/functions/**",
+      "AGENTS.md",
+      "package*.json",
+      "*.rules"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/config",
+        "function": "getAppConfig"
+      },
+      {
+        "source": "/api/analyzePhoto",
+        "function": "analyzeGeneratorPhoto"
+      },
+      {
+        "source": "/api/health",
+        "function": "health"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

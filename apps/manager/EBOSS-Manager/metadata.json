@@ -1,0 +1,7 @@
+{
+  "name": "ANA | EBOSS MANAGER",
+  "description": "A unit-centric CRM for OEM generator manufacturers focusing on quality assurance, field service tracking, and Applications Technician workflow/CRM, Tracking and data entry.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

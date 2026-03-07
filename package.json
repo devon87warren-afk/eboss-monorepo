@@ -1,0 +1,23 @@
+{
+  "name": "eboss-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:run": "turbo run test:run",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev:map": "turbo run dev --filter=@eboss/map",
+    "dev:manager": "turbo run dev --filter=@eboss/manager",
+    "dev:tech": "turbo run dev --filter=@eboss/tech"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4"
+  },
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

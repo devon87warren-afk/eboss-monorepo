@@ -1,0 +1,5 @@
+# Salesforce API Client
+simple-salesforce==1.12.6
+
+# Environment variable management
+python-dotenv==1.0.0

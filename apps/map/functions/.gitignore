@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Environment and secrets (security)
+.env
+.env.*
+*.local
+.env.*.local
+
+# Build and output directories
+dist/
+build/
+.firebase/
+coverage/
+
+# Runtime config
+*.local
