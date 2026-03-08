@@ -281,6 +281,7 @@ CREATE POLICY checklists_technician_insert ON commissioning_checklists
   FOR INSERT TO app_user
   WITH CHECK (
     technician_id::text = current_setting('app.current_user_id', true)
+    AND territory_id = current_setting('app.current_territory_id', true)
   );
 
 CREATE POLICY checklists_technician_update ON commissioning_checklists
@@ -288,6 +289,10 @@ CREATE POLICY checklists_technician_update ON commissioning_checklists
   USING (
     technician_id::text = current_setting('app.current_user_id', true)
     OR current_setting('app.current_user_role', true) IN ('admin', 'manager')
+  )
+  WITH CHECK (
+    technician_id::text = current_setting('app.current_user_id', true)
+    AND territory_id = current_setting('app.current_territory_id', true)
   );
 
 CREATE POLICY checklists_admin_all ON commissioning_checklists
