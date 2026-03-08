@@ -91,7 +91,11 @@ export async function withContext<T>(
     await client.query('COMMIT');
     return result;
   } catch (err) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // ROLLBACK failed (e.g. connection lost); ignore so original error propagates
+    }
     throw err;
   } finally {
     client.release();

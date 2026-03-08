@@ -240,6 +240,12 @@ CREATE POLICY user_profiles_self_update ON user_profiles
   FOR UPDATE TO app_user
   USING (
     id::text = current_setting('app.current_user_id', true)
+  )
+  WITH CHECK (
+    id::text = current_setting('app.current_user_id', true)
+    AND role = (SELECT up.role FROM user_profiles up WHERE up.id::text = current_setting('app.current_user_id', true))
+    AND territory_id IS NOT DISTINCT FROM (SELECT up.territory_id FROM user_profiles up WHERE up.id::text = current_setting('app.current_user_id', true))
+    AND is_active = (SELECT up.is_active FROM user_profiles up WHERE up.id::text = current_setting('app.current_user_id', true))
   );
 
 CREATE POLICY user_profiles_admin_all ON user_profiles
