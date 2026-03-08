@@ -15,6 +15,7 @@
 --   Application sets session variables per request:
 --     SET app.current_user_id = '<user-uuid>';
 --     SET app.current_territory_id = '<territory-id>';
+--     SET app.current_user_role = '<role>';
 --   Policies use current_setting() to enforce territory boundaries.
 -- ============================================================================
 
@@ -214,6 +215,10 @@ ALTER TABLE user_profiles            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE units                    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE commissioning_checklists ENABLE ROW LEVEL SECURITY;
 
+-- ---------------------------------------------------------------------------
+-- Territories: all authenticated users can read; only admins can modify.
+-- ---------------------------------------------------------------------------
+
 -- Territories: all authenticated users can read all territories.
 -- Only admins can modify (enforced at app layer, not in RLS for simplicity).
 CREATE POLICY territories_read ON territories
@@ -226,8 +231,11 @@ CREATE POLICY territories_admin_write ON territories
     current_setting('app.current_user_role', true) = 'admin'
   );
 
--- User Profiles: users can read profiles in their territory, or their own.
--- Admins can read all.
+-- ---------------------------------------------------------------------------
+-- User Profiles: users can read profiles in their territory or their own.
+-- Admins can read all. Self-update restricted to non-sensitive columns.
+-- ---------------------------------------------------------------------------
+
 CREATE POLICY user_profiles_read ON user_profiles
   FOR SELECT TO app_user
   USING (
@@ -254,7 +262,10 @@ CREATE POLICY user_profiles_admin_all ON user_profiles
     current_setting('app.current_user_role', true) = 'admin'
   );
 
--- Units: territory-scoped read access, admins can read all.
+-- ---------------------------------------------------------------------------
+-- Units: territory-scoped read access; admins/managers can read and write all.
+-- ---------------------------------------------------------------------------
+
 CREATE POLICY units_territory_read ON units
   FOR SELECT TO app_user
   USING (
@@ -268,8 +279,11 @@ CREATE POLICY units_admin_write ON units
     current_setting('app.current_user_role', true) IN ('admin', 'manager')
   );
 
--- Commissioning Checklists: technicians see their own territory's checklists.
--- They can create/update checklists they own. Admins/managers see all.
+-- ---------------------------------------------------------------------------
+-- Commissioning Checklists: technicians see their territory's checklists.
+-- They can create/update checklists they own. Admins/managers have full CRUD.
+-- ---------------------------------------------------------------------------
+
 CREATE POLICY checklists_territory_read ON commissioning_checklists
   FOR SELECT TO app_user
   USING (
@@ -302,12 +316,12 @@ CREATE POLICY checklists_admin_all ON commissioning_checklists
   );
 
 -- ============================================================================
--- GRANT PERMISSIONS TO app_user
+-- GRANTS
 -- ============================================================================
 
-GRANT USAGE ON SCHEMA public TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON territories              TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_profiles            TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON units                    TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON commissioning_checklists TO app_user;
 
 COMMIT;
