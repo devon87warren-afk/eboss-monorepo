@@ -17,6 +17,8 @@ export default function Dashboard() {
         {/* Map HUD Overlay - Top Left */}
         <div className="absolute left-6 top-6 z-10 hidden md:block">
           <div className="w-64">
+            {/* TODO(EBOSS-111, 2026-03-08): Replace with next/image for LCP optimisation once dimensions are confirmed. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/brand/logos-ana/ANA-HORIZONTAL-LOGO-METAL-WHITE-TAGLINE.svg"
               alt="ANA Energy"

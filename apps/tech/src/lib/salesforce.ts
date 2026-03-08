@@ -5,6 +5,9 @@ export interface SalesforceSearchResult {
     Id: string;
     Name: string;
     Type: string;
+    // TODO(EBOSS-111, 2026-03-08): Replace index-signature `any` with a more
+    // specific type once the full Salesforce field set is known.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
 }
 
@@ -76,6 +79,9 @@ export const searchSalesforceCustomers = async (query: string): Promise<Salesfor
         const result = await connection.search(sosl);
 
         // Flatten results into a single array
+        // TODO(EBOSS-111, 2026-03-08): Type the jsforce searchRecord callback
+        // once jsforce typings expose the full record shape.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const records = result.searchRecords.map((record: { attributes: { type: any; }; }) => ({
             ...record,
             Type: record.attributes.type, // Ensure Type is explicit

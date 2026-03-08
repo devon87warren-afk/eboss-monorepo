@@ -1,7 +1,7 @@
 "use client";
 
 import { clsx } from "clsx";
-import { LayoutDashboard, Plane, Receipt, Briefcase, Settings, LogOut, FileText, Database } from "lucide-react";
+import { LayoutDashboard, Plane, Receipt, Briefcase, Settings, LogOut, FileText, Database, QrCode } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 const MENU_ITEMS = [
     { label: "Cockpit", icon: LayoutDashboard, href: "/" },
     { label: "Active Jobs", icon: Briefcase, href: "/jobs" },
+    { label: "Commissioning", icon: QrCode, href: "/commissioning" },
     { label: "Expense Auto", icon: Receipt, href: "/expenses" },
     { label: "Travel.ai", icon: Plane, href: "/travel" },
 ];

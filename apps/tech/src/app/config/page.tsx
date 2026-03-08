@@ -2,6 +2,9 @@
 
 import { BottomNav } from '@/components/navigation/BottomNav';
 import { useConfig } from '@/hooks/useConfig';
+// TODO(EBOSS-111, 2026-03-08): ConfigSetting imported for future typed usage;
+// suppress unused-vars warning until the config page rendering is complete.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { ConfigSetting, ConfigToggle, ConfigNumber, ConfigText } from '@/types/dashboard';
 
 export default function ConfigPage() {
