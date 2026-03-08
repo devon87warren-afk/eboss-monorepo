@@ -219,6 +219,8 @@ ALTER TABLE commissioning_checklists ENABLE ROW LEVEL SECURITY;
 -- Territories: all authenticated users can read; only admins can modify.
 -- ---------------------------------------------------------------------------
 
+-- Territories: all authenticated users can read all territories.
+-- Only admins can modify (enforced at app layer, not in RLS for simplicity).
 CREATE POLICY territories_read ON territories
   FOR SELECT TO app_user
   USING (true);
@@ -242,8 +244,6 @@ CREATE POLICY user_profiles_read ON user_profiles
     OR current_setting('app.current_user_role', true) = 'admin'
   );
 
--- Self-update: users can update their own profile but CANNOT change
--- role, territory_id, or is_active (prevents privilege escalation).
 CREATE POLICY user_profiles_self_update ON user_profiles
   FOR UPDATE TO app_user
   USING (
@@ -295,6 +295,7 @@ CREATE POLICY checklists_technician_insert ON commissioning_checklists
   FOR INSERT TO app_user
   WITH CHECK (
     technician_id::text = current_setting('app.current_user_id', true)
+    AND territory_id = current_setting('app.current_territory_id', true)
   );
 
 CREATE POLICY checklists_technician_update ON commissioning_checklists
@@ -302,6 +303,10 @@ CREATE POLICY checklists_technician_update ON commissioning_checklists
   USING (
     technician_id::text = current_setting('app.current_user_id', true)
     OR current_setting('app.current_user_role', true) IN ('admin', 'manager')
+  )
+  WITH CHECK (
+    technician_id::text = current_setting('app.current_user_id', true)
+    AND territory_id = current_setting('app.current_territory_id', true)
   );
 
 CREATE POLICY checklists_admin_all ON commissioning_checklists

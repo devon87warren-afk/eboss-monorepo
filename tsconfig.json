@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@eboss/types": ["packages/types/src/index.ts"],
+      "@eboss/types/*": ["packages/types/src/*"],
+      "@eboss/ui": ["packages/ui/src/index.ts"],
+      "@eboss/ui/*": ["packages/ui/src/*"],
+      "@eboss/auth": ["packages/auth/src/index.ts"],
+      "@eboss/auth/*": ["packages/auth/src/*"],
+      "@eboss/utils": ["packages/utils/src/index.ts"],
+      "@eboss/utils/*": ["packages/utils/src/*"]
+    }
+  },
+  "references": [
+    { "path": "packages/types" },
+    { "path": "packages/ui" },
+    { "path": "packages/auth" },
+    { "path": "packages/utils" }
+  ],
+  "files": []
+}
