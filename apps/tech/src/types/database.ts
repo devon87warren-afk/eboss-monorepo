@@ -249,6 +249,49 @@ export interface CreateSavingsProjectionInput {
 }
 
 // ============================================================================
+// COMMISSIONING / UNITS
+// ============================================================================
+
+/**
+ * eBoss unit model variants
+ */
+export type EbossModel = '30KW' | '60KW' | '100KW' | '150KW';
+
+/**
+ * Serial number format: EBOSS-{MODEL}-{YEAR}-{SEQ}
+ * Example: EBOSS-60KW-2025-001234
+ */
+export type SerialNumber = string;
+
+/**
+ * eBoss unit record from database
+ */
+export interface EbossUnit {
+  /** Unique identifier (UUID) */
+  id: string;
+  /** Serial number in EBOSS-{MODEL}-{YEAR}-{SEQ} format */
+  serial_number: SerialNumber;
+  /** Unit model */
+  model: EbossModel;
+  /** Manufacturing year */
+  year: number;
+  /** Sequence number */
+  sequence: string;
+  /** Territory the unit belongs to */
+  territory_id: string | null;
+  /** Customer/client the unit is deployed at */
+  customer_name: string | null;
+  /** Unit site location */
+  site_location: string | null;
+  /** Unit status */
+  status: string | null;
+  /** Record creation timestamp */
+  created_at: string;
+  /** Record update timestamp */
+  updated_at: string;
+}
+
+// ============================================================================
 // DATABASE SCHEMA TYPE (for Supabase client)
 // ============================================================================
 
@@ -283,6 +326,12 @@ export interface Database {
         Row: SavingsProjection;
         Insert: CreateSavingsProjectionInput & { id?: string };
         Update: Partial<CreateSavingsProjectionInput>;
+        Relationships: [];
+      };
+      units: {
+        Row: EbossUnit;
+        Insert: Omit<EbossUnit, 'id' | 'created_at' | 'updated_at'> & { id?: string };
+        Update: Partial<Omit<EbossUnit, 'id' | 'created_at' | 'updated_at'>>;
         Relationships: [];
       };
       users: {
