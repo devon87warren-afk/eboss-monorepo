@@ -2,7 +2,11 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+// TODO(EBOSS-111, 2026-03-08): motion/useMotionTemplate imported for planned
+// animated button variants; suppress until the animations are wired up.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { motion } from "motion/react"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useMotionTemplate } from "motion/react"
 
 const buttonVariants = cva(

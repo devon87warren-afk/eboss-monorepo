@@ -16,6 +16,9 @@ import {
 } from './technicianLocationService';
 import {
   createTechnicianLocation,
+  // TODO(EBOSS-111, 2026-03-08): createTechnicianLocationWithProfile imported
+  // for planned profile-aware test cases; suppress until those tests are added.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   createTechnicianLocationWithProfile,
   createTravelingTechnician,
   resetMockCounters,

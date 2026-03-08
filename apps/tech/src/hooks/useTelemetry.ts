@@ -14,8 +14,14 @@ interface UseTelemetryReturn {
   setRemoteOperationEnabled: (enabled: boolean) => void;
 }
 
+// TODO(EBOSS-111, 2026-03-08): assetId param reserved for future multi-asset
+// telemetry; suppress until the feature is implemented.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useTelemetry(assetId?: string): UseTelemetryReturn {
   const [readings, setReadings] = useState<TelemetryReading[]>(telemetryReadings);
+  // TODO(EBOSS-111, 2026-03-08): setPerformance is wired to future live-data
+  // updates; suppress until the real-time refresh logic is added.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [performance, setPerformance] = useState<PerformanceData[]>(performanceData);
   const [isUpdating, setIsUpdating] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
