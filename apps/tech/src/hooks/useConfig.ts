@@ -14,6 +14,9 @@ interface UseConfigReturn {
   discardChanges: () => void;
 }
 
+// TODO(EBOSS-111, 2026-03-08): assetId param reserved for future multi-asset
+// config support; suppress until the feature is implemented.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useConfig(assetId?: string): UseConfigReturn {
   const [sections, setSections] = useState<ConfigSection[]>(configSections);
   const [originalSections] = useState<ConfigSection[]>(configSections);
