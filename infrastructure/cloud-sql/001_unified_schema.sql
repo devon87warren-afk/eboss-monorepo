@@ -284,6 +284,12 @@ CREATE POLICY checklists_technician_update ON commissioning_checklists
     OR current_setting('app.current_user_role', true) IN ('admin', 'manager')
   );
 
+CREATE POLICY checklists_admin_all ON commissioning_checklists
+  FOR ALL TO app_user
+  USING (
+    current_setting('app.current_user_role', true) IN ('admin', 'manager')
+  );
+
 -- ============================================================================
 -- GRANT PERMISSIONS TO app_user
 -- ============================================================================
