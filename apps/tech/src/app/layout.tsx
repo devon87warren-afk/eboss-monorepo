@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/app/components/ui/Sidebar";
+import { AppShell } from "@/components/layout/AppShell";
 import QueryProvider from "@/providers/QueryProvider";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -18,18 +18,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen bg-slate-50 dark:bg-slate-950`}>
+      <body className={`${inter.className} min-h-screen bg-slate-950`}>
         <QueryProvider>
-          <div className="flex">
-            {/* Sidebar */}
-            <Sidebar />
-
-            {/* Main Content */}
-            {/* Main Content - Full Width for Industrial Dashboard */}
-            <main className="flex-1 overflow-hidden bg-slate-950">
-              {children}
-            </main>
-          </div>
+          <AppShell>{children}</AppShell>
         </QueryProvider>
       </body>
     </html>
