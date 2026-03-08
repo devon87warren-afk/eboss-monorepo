@@ -45,3 +45,6 @@ pnpm-debug.log*
 # Test coverage
 coverage/
 .nyc_output/
+
+# BrainGrid
+.braingrid/temp/
