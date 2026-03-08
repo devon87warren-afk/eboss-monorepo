@@ -1,0 +1,61 @@
+# .gcloudignore
+# Files listed here are excluded from the Cloud Build source upload.
+# Syntax is identical to .gitignore.
+
+# Dependencies (rebuilt inside Docker)
+node_modules/
+.pnpm-store/
+**/node_modules/
+
+# Build outputs (rebuilt inside Docker)
+dist/
+build/
+out/
+.next/
+**/.next/
+**/dist/
+**/build/
+
+# Turborepo cache
+.turbo/
+**/.turbo/
+
+# Environment / secrets (never upload to Cloud Build)
+.env
+.env.local
+.env.*
+*.env
+**/.env
+**/.env.*
+
+# Firebase emulator state
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# OS / editor artefacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Git metadata (not needed by Cloud Build)
+.git/
+
+# Temporary files created by Claude / AI agents
+tmpclaude-*/
+tmp*/
