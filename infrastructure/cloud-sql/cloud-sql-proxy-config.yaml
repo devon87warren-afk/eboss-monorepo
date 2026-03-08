@@ -1,0 +1,87 @@
+# ============================================================================
+# EBOSS Cloud SQL Proxy - Cloud Run Service Configuration
+# ============================================================================
+#
+# Knative serving manifest for deploying the EBOSS commissioning API
+# on Cloud Run with a Cloud SQL Auth Proxy sidecar.
+#
+# Prerequisites:
+#   - GCP project with Cloud SQL PostgreSQL 15 instance in us-west1
+#   - Service account with Cloud SQL Client role
+#   - Secrets "db-user" and "db-password" in GCP Secret Manager
+#
+# Placeholders to replace before deployment:
+#   <GCP_PROJECT_ID>  - Your GCP project ID
+#   <INSTANCE_NAME>   - Cloud SQL instance name
+#
+# Deploy:
+#   gcloud run services replace cloud-sql-proxy-config.yaml \
+#     --region us-west1
+# ============================================================================
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: eboss-commissioning-api
+  labels:
+    cloud.googleapis.com/location: us-west1
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+    run.googleapis.com/description: "EBOSS commissioning module API with Cloud SQL Proxy sidecar"
+spec:
+  template:
+    metadata:
+      annotations:
+        # Auto-scaling configuration
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+        # Cloud SQL instance connection
+        run.googleapis.com/cloudsql-instances: "<GCP_PROJECT_ID>:us-west1:<INSTANCE_NAME>"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      serviceAccountName: eboss-api-sa@<GCP_PROJECT_ID>.iam.gserviceaccount.com
+      containers:
+        # Application container
+        - name: app
+          image: gcr.io/<GCP_PROJECT_ID>/eboss-commissioning-api:latest
+          ports:
+            - containerPort: 8080
+              name: http1
+          env:
+            # Cloud SQL Proxy listens on localhost:5432
+            - name: DB_HOST
+              value: "127.0.0.1"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "eboss"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-user
+                  key: latest
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-password
+                  key: latest
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+
+        # Cloud SQL Auth Proxy sidecar
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            # TODO: Replace with actual instance connection name
+            - "<GCP_PROJECT_ID>:us-west1:<INSTANCE_NAME>"
+            - "--port=5432"
+            - "--auto-iam-authn"
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "0.5"
+          securityContext:
+            runAsNonRoot: true
