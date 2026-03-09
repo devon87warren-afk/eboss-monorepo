@@ -1,0 +1,15 @@
+{
+  "organization_id": "e3e90223-a260-45c9-92cf-4cbcb7ab49e7",
+  "project_id": "ff0164a9-4db4-41ce-9747-8245986bc2c5",
+  "project_short_id": "PROJ-5",
+  "project_name": "eboss-monorepo",
+  "project_description": "a unified version of the 3 eboss apps",
+  "repository": {
+    "id": "82bae93b-2ab3-41a6-8bdf-0bce7ac24f88",
+    "owner": "devon87warren-afk",
+    "name": "eboss-monorepo",
+    "full_name": "devon87warren-afk/eboss-monorepo",
+    "url": "https://github.com/devon87warren-afk/eboss-monorepo.git"
+  },
+  "created_at": "2026-03-08T00:23:03.009Z"
+}

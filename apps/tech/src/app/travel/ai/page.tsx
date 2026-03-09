@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+// TODO(EBOSS-111, 2026-03-08): AnimatePresence imported for planned message
+// transition animations; suppress until the feature is implemented.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GeminiAiPage() {

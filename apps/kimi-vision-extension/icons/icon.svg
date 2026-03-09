@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399"/>
+      <stop offset="100%" style="stop-color:#10b981"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+  
+  <!-- Outer ring -->
+  <circle cx="64" cy="64" r="46" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+  
+  <!-- Middle ring -->
+  <circle cx="64" cy="64" r="34" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+  
+  <!-- Inner accent ring -->
+  <circle cx="64" cy="64" r="22" fill="none" stroke="url(#accent)" stroke-width="3" filter="url(#glow)"/>
+  
+  <!-- Center dot -->
+  <circle cx="64" cy="64" r="8" fill="url(#accent)" filter="url(#glow)"/>
+  
+  <!-- Orbital dots -->
+  <circle cx="64" cy="18" r="4" fill="white"/>
+  <circle cx="110" cy="64" r="3" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="64" cy="110" r="3" fill="rgba(255,255,255,0.6)"/>
+</svg>

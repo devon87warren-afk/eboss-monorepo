@@ -1,0 +1,319 @@
+{
+  "name": "Receipt scanning & analysis workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "list",
+          "value": "12aSoGo009rsrhyJ_a4VP84m_NrWCsA3O",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/12aSoGo009rsrhyJ_a4VP84m_NrWCsA3O",
+          "cachedResultName": "Invoices"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "2c4bad91-3320-4906-af4d-7095733a9ebb",
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "position": [
+        384,
+        448
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}?alt=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "4e7873cf-4bf0-49cc-8961-b6822ddb7534",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        592,
+        448
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "8f95087b-ed1e-4724-b626-2e4e569b87db",
+      "name": "Extract text",
+      "type": "n8n-nodes-base.mistralAi",
+      "position": [
+        800,
+        448
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert in analyzing invoices.\n\nHere is an invoice that you should analyze: {{ $json.pages[0].markdown }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "fa981161-1090-44b0-ba3f-c94fe81c39a9",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        1008,
+        448
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "id": "891a6ece-adf2-43a0-8eaf-71d856abdf80",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        912,
+        656
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"invoiceNumber\": \"INV123\",\n\t\"From\": \"John street 23, 12443 Berlin, Germany\",\n    \"To\": \"Smith street 33, 23222 Berlin, Germany\",\n    \"invoiceDate\": \"20/08/2025\",\n    \"dueDate\": \"25/08/2025\",\n    \"shortDescription\": \"It is an invoice about web development costs\"\n}"
+      },
+      "id": "442bba12-af49-4490-97d7-3d1f691bcfc2",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        1216,
+        656
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "14tyy2at8ZtfoQq4zGYph4DG7omv9uA9aXGH5KnQbPgs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14tyy2at8ZtfoQq4zGYph4DG7omv9uA9aXGH5KnQbPgs/edit?usp=drivesdk",
+          "cachedResultName": "Invoices from Google Drive"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14tyy2at8ZtfoQq4zGYph4DG7omv9uA9aXGH5KnQbPgs/edit#gid=0",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "value": {
+            "To": "={{ $json.output.To }}",
+            "From": "={{ $json.output.From }}",
+            "Due Date": "={{ $json.output.dueDate }}",
+            "Invoice Date": "={{ $json.output.invoiceDate }}",
+            "Link to File": "={{ $('Google Drive Trigger').item.json.webViewLink }}",
+            "Invoice Number": "={{ $json.output.invoiceNumber }}",
+            "Short Description": "={{ $json.output.shortDescription }}"
+          },
+          "schema": [
+            {
+              "id": "Invoice Number",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Invoice Number",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "From",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "From",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "To",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "To",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Date",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Invoice Date",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Due Date",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Due Date",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Short Description",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Short Description",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Link to File",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Link to File",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a1c817d0-dccc-4666-9728-5f74107d5c1e",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1360,
+        448
+      ],
+      "typeVersion": 4.7
+    },
+    {
+      "parameters": {
+        "content": "## n8n Starter Session Tutorial\n\n[Watch the Tutorials](https://www.youtube.com/playlist?list=PLWYu7XaUG3XOJwOOGiX89SQ_w67vw3dq7)\n\nTutor: [Aemal Sayer](https://aemalsayer.com)",
+        "width": 352
+      },
+      "id": "276a2c56-5abe-41a4-87ab-4fa773c975a7",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        368,
+        240
+      ],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract text": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "",
+  "meta": {
+    "templateId": "7990",
+    "instanceId": "984dfe26967280b14e643226dab71e40f588af9a154c17cf56239867804d7bb3"
+  },
+  "id": "zGx6oD96r0jErU37",
+  "tags": []
+}

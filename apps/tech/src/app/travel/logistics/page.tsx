@@ -60,7 +60,7 @@ export default function LogisticsTicketsPage() {
 
             <section className="bg-red-500/5 border border-red-500/10 p-4 rounded-xl">
                 <p className="text-[10px] text-red-200/50 font-mono italic leading-relaxed text-center">
-                    "Attention: All field dispatch tickets are audited by Operations Center. Emergency override requires Site Lead authorization."
+                    {'"Attention: All field dispatch tickets are audited by Operations Center. Emergency override requires Site Lead authorization."'}
                 </p>
             </section>
         </div>
