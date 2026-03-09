@@ -1,0 +1,100 @@
+# ============================================================================
+# Cloud SQL Auth Proxy Sidecar Configuration
+# ============================================================================
+#
+# This file documents the Cloud SQL Proxy sidecar configuration for Cloud Run.
+# The proxy runs as a sidecar container alongside the application container,
+# providing secure, IAM-authenticated connections to Cloud SQL PostgreSQL.
+#
+# Prerequisites:
+#   - Cloud SQL PostgreSQL 15 instance provisioned in us-west1
+#   - Cloud Run service account with Cloud SQL Client role
+#   - Instance connection name from GCP Console
+#
+# Instance Connection Name Format:
+#   <GCP_PROJECT_ID>:<REGION>:<INSTANCE_NAME>
+#   Example: my-project-123:us-west1:eboss-cloudsql
+#
+# TODO: Replace <GCP_PROJECT_ID> and <INSTANCE_NAME> with actual values
+#       from your GCP project. Get these from:
+#       gcloud sql instances describe <INSTANCE_NAME> --format='value(connectionName)'
+#
+# GCP Instance Creation (run outside repo, documented here for reference):
+#   gcloud sql instances create eboss-cloudsql \
+#     --database-version=POSTGRES_15 \
+#     --tier=db-custom-2-7680 \
+#     --region=us-west1 \
+#     --storage-type=SSD \
+#     --storage-size=10GB \
+#     --availability-type=zonal \
+#     --database-flags=cloudsql.iam_authentication=on
+#
+#   gcloud sql databases create eboss \
+#     --instance=eboss-cloudsql
+#
+#   gcloud sql users create app_user \
+#     --instance=eboss-cloudsql \
+#     --password=<stored-in-secret-manager>
+#
+# Verification:
+#   gcloud sql instances describe eboss-cloudsql --format='value(state)'
+#   # Expected: RUNNABLE
+# ============================================================================
+
+# Cloud Run service definition with Cloud SQL Proxy sidecar
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: eboss-api
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        # TODO: Replace with actual instance connection name
+        run.googleapis.com/cloudsql-instances: "<GCP_PROJECT_ID>:us-west1:<INSTANCE_NAME>"
+    spec:
+      containers:
+        # Application container
+        - name: app
+          image: gcr.io/<GCP_PROJECT_ID>/eboss-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            # Cloud SQL Proxy listens on localhost:5432
+            - name: DB_HOST
+              value: "127.0.0.1"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "eboss"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-user
+                  key: latest
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-password
+                  key: latest
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+
+        # Cloud SQL Auth Proxy sidecar
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            # TODO: Replace with actual instance connection name
+            - "<GCP_PROJECT_ID>:us-west1:<INSTANCE_NAME>"
+            - "--port=5432"
+            - "--auto-iam-authn"
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "0.5"
+          securityContext:
+            runAsNonRoot: true
