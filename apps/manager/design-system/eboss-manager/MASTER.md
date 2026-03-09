@@ -17,7 +17,7 @@
 ### Color Palette
 
 | Role | Hex | CSS Variable |
-|------|-----|--------------|
+| --- | --- | --- |
 | Primary | `#0F172A` | `--color-primary` |
 | Secondary | `#334155` | `--color-secondary` |
 | CTA/Accent | `#0369A1` | `--color-cta` |
@@ -34,6 +34,7 @@
 - **Google Fonts:** [Plus Jakarta Sans + Plus Jakarta Sans](https://fonts.google.com/share?selection.family=Plus+Jakarta+Sans:wght@300;400;500;600;700)
 
 **CSS Import:**
+
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 ```
@@ -41,7 +42,7 @@
 ### Spacing Variables
 
 | Token | Value | Usage |
-|-------|-------|-------|
+| ------- | ------- | ------- |
 | `--space-xs` | `4px` / `0.25rem` | Tight gaps |
 | `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
 | `--space-md` | `16px` / `1rem` | Standard padding |
@@ -53,7 +54,7 @@
 ### Shadow Depths
 
 | Level | Value | Usage |
-|-------|-------|-------|
+| ------- | ------- | ------- |
 | `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
 | `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
 | `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
