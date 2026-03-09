@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Read(//c/Users/User/**)",
+      "Bash(curl:*)"
     ]
   }
 }
