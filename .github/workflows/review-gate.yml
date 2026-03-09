@@ -278,31 +278,32 @@ jobs:
     if: always() && needs.check-agent-pr.outputs.is_agent == 'true'
     runs-on: [self-hosted, openclaw]
     steps:
-      - name: Send review result to OpenClaw
+      # POST /hooks/agent with deliver:true sends the message outbound via
+      # OpenClaw's connected WhatsApp channel (Baileys protocol).
+      - name: Send review result via OpenClaw /hooks/agent → WhatsApp
         env:
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+          OPENCLAW_WHATSAPP_TO:   ${{ secrets.OPENCLAW_WHATSAPP_TO }}
           VERDICT:  ${{ needs.braingrid-review.outputs.result }}
           FEEDBACK: ${{ needs.braingrid-review.outputs.feedback }}
         run: |
-          ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oP '^[A-Z]+-[0-9]+' || echo "")
+          ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oP '^[A-Z]+-[0-9]+' || echo "unknown")
           PR_URL="${{ github.event.pull_request.html_url }}"
           PR_NUM="${{ github.event.pull_request.number }}"
 
           if [ "$VERDICT" = "approved" ]; then
-            EVENT="review_approved"
-            MESSAGE="✅ PR #${PR_NUM} approved — ${ISSUE_ID} ready to merge.\n${PR_URL}"
+            MSG="✅ Review approved — ${ISSUE_ID}\nPR #${PR_NUM} is ready to merge.\n${PR_URL}"
           else
-            EVENT="review_changes_requested"
-            MESSAGE="🔄 PR #${PR_NUM} needs changes — ${ISSUE_ID}\nFeedback: ${FEEDBACK}\n${PR_URL}"
+            MSG="🔄 Changes requested — ${ISSUE_ID}\nPR #${PR_NUM}\nFeedback: ${FEEDBACK}\n${PR_URL}"
           fi
 
-          curl -sf -X POST "http://localhost:18789/notify" \
+          curl -sf -X POST "http://127.0.0.1:18789/hooks/agent" \
+            -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
-              \"event\":    \"${EVENT}\",
-              \"issue_id\": \"${ISSUE_ID}\",
-              \"pr_url\":   \"${PR_URL}\",
-              \"pr_number\": ${PR_NUM},
-              \"verdict\":  \"${VERDICT}\",
-              \"feedback\": \"${FEEDBACK}\",
-              \"message\":  \"${MESSAGE}\"
-            }" || echo "OpenClaw notify failed — WhatsApp message not sent (non-fatal)"
+              \"message\":        \"${MSG}\",
+              \"deliver\":        true,
+              \"channel\":        \"whatsapp\",
+              \"to\":             \"${OPENCLAW_WHATSAPP_TO}\",
+              \"timeoutSeconds\": 30
+            }" || echo "OpenClaw WhatsApp delivery failed (non-fatal)"

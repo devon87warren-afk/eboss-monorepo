@@ -84,19 +84,25 @@ jobs:
     if: needs.check-stalled-runs.outputs.stalled_count != '0'
     runs-on: [self-hosted, openclaw]
     steps:
-      - name: Send stall alert to OpenClaw
+      - name: Send stall alert via OpenClaw /hooks/agent → WhatsApp
+        env:
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+          OPENCLAW_WHATSAPP_TO:   ${{ secrets.OPENCLAW_WHATSAPP_TO }}
         run: |
           COUNT="${{ needs.check-stalled-runs.outputs.stalled_count }}"
           IDS="${{ needs.check-stalled-runs.outputs.stalled_ids }}"
+          MSG="⚠️ ${COUNT} EBOSS agent(s) stalled > 90 min\nRun IDs: ${IDS}\nCheck Linear or GitHub Actions."
 
-          curl -sf -X POST "http://localhost:18789/notify" \
+          curl -sf -X POST "http://127.0.0.1:18789/hooks/agent" \
+            -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
-              \"event\":   \"agents_stalled\",
-              \"count\":   ${COUNT},
-              \"run_ids\": \"${IDS}\",
-              \"message\": \"⚠️ ${COUNT} EBOSS agent(s) stalled > 90 min\\nRun IDs: ${IDS}\\nCheck Linear issues or GitHub Actions.\"
-            }" || echo "OpenClaw notify failed (non-fatal)"
+              \"message\":        \"${MSG}\",
+              \"deliver\":        true,
+              \"channel\":        \"whatsapp\",
+              \"to\":             \"${OPENCLAW_WHATSAPP_TO}\",
+              \"timeoutSeconds\": 30
+            }" || echo "OpenClaw WhatsApp delivery failed (non-fatal)"
 
   # ── Weekly summary ──────────────────────────────────────────────────────────
   # Every Monday 8:00 UTC — generate a weekly agent performance report

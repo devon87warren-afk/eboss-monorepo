@@ -1,0 +1,95 @@
+// OpenClaw configuration for eboss-monorepo
+// Copy this file to ~/.openclaw/openclaw.json on the machine running OpenClaw.
+// JSON5 format: comments and trailing commas are allowed.
+//
+// SETUP STEPS (run these once on the host machine):
+//   1. npm install -g openclaw@latest
+//   2. openclaw onboard --install-daemon
+//   3. openclaw gateway install && openclaw gateway start
+//   4. openclaw channels login --channel whatsapp   (scan QR in WhatsApp app)
+//   5. npx clawhub@latest install github            (GitHub skill)
+//   6. gh auth login                                (authenticate GitHub CLI)
+//   7. Copy this file to ~/.openclaw/openclaw.json
+//   8. openclaw gateway restart
+//
+// GITHUB ACTIONS SELF-HOSTED RUNNER (must be on the same machine):
+//   In your GitHub repo: Settings → Actions → Runners → New self-hosted runner
+//   Follow the GitHub instructions, then add the custom label:
+//     ./config.sh --labels openclaw
+//     ./run.sh
+//
+// SECRETS to add in GitHub repo Settings → Secrets → Actions:
+//   OPENCLAW_GATEWAY_TOKEN  – value of gateway.auth.token below
+//   OPENCLAW_WHATSAPP_TO    – your WhatsApp number, e.g. "+15551234567"
+{
+  // ── Model ────────────────────────────────────────────────────────────────
+  "agent": {
+    // claude-opus-4-6 is the strongest model for autonomous coding tasks.
+    // Swap for "anthropic/claude-sonnet-4-6" to reduce cost on simpler issues.
+    "model": "anthropic/claude-opus-4-6",
+
+    // AGENTS.md in the workspace gives OpenClaw project-specific context.
+    // See .openclaw/AGENTS.md for the eboss-monorepo system prompt addition.
+    "instructions": "$include AGENTS.md",
+  },
+
+  // ── Gateway ──────────────────────────────────────────────────────────────
+  "gateway": {
+    // Must match port 18789 expected by the GitHub Actions workflows.
+    "port": 18789,
+
+    // Bind to loopback only — the self-hosted runner is on the same machine.
+    "host": "127.0.0.1",
+
+    "auth": {
+      "mode": "token",
+      // Set this to the value of your OPENCLAW_GATEWAY_TOKEN secret.
+      // Generate with: openssl rand -hex 32
+      "token": "${OPENCLAW_GATEWAY_TOKEN}",
+    },
+
+    "http": {
+      "endpoints": {
+        // Must be enabled for POST /v1/responses (used by agent-runner.yml)
+        "responses": { "enabled": true },
+        // /hooks/agent used for outbound WhatsApp delivery
+        "hooks":     { "enabled": true },
+      },
+    },
+  },
+
+  // ── Channels ─────────────────────────────────────────────────────────────
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+
+      // "pairing" = OpenClaw links as a companion device (no Business API needed).
+      "dmPolicy": "pairing",
+
+      // Restrict incoming messages to your number only.
+      // Replace with your WhatsApp number in E.164 format.
+      "allowFrom": ["${OPENCLAW_WHATSAPP_TO}"],
+
+      // Disable group messages — this is a private dev notification channel.
+      "groupPolicy": "disabled",
+    },
+
+    // Disable unused channels to reduce attack surface.
+    "telegram": { "enabled": false },
+    "slack":    { "enabled": false },
+    "discord":  { "enabled": false },
+  },
+
+  // ── Hooks ────────────────────────────────────────────────────────────────
+  // Custom webhook mappings (none needed — agent-runner uses /hooks/agent directly)
+  "hooks": {
+    "mappings": {},
+  },
+
+  // ── Environment ──────────────────────────────────────────────────────────
+  // Env vars available to the agent during task execution.
+  // GITHUB_TOKEN is picked up by the gh CLI automatically.
+  "env": {
+    "GITHUB_TOKEN": "${GITHUB_TOKEN}",
+  },
+}

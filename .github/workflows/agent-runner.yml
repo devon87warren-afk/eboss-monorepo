@@ -368,13 +368,21 @@ jobs:
             }"
 
   # ── 2e. OpenClaw agent ────────────────────────────────────────────────────
-  # Runs on a self-hosted runner registered on the same machine as OpenClaw
-  # (label: "openclaw") so localhost:18789 is reachable.
+  # Runs on a self-hosted runner (label: "openclaw") on the same machine as
+  # the OpenClaw daemon so http://127.0.0.1:18789 is always reachable.
   #
-  # OpenClaw REST contract assumed:
-  #   POST /tasks        → { task_id, status }
-  #   GET  /tasks/:id    → { task_id, status, pr_url?, pr_number?, error? }
-  #   POST /notify       → send a WhatsApp message via OpenClaw's existing channel
+  # Real OpenClaw API (v2026.3.x):
+  #   POST /v1/responses   – synchronous task execution, returns when done
+  #     headers:  Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN
+  #     body:     { model, input, stream: false, user }
+  #     response: { output: [{ type: "message", content: [{ type: "text", text }] }] }
+  #
+  #   POST /hooks/agent    – outbound WhatsApp delivery
+  #     body:     { message, deliver: true, channel: "whatsapp", to, timeoutSeconds }
+  #
+  # GitHub integration: OpenClaw uses the host machine's `gh` CLI session.
+  # The prompt instructs it to commit, push, and open a PR — then include
+  # the PR URL in its final reply so we can extract it.
   openclaw:
     name: Run OpenClaw
     needs: setup
@@ -388,82 +396,105 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create branch
+      - name: Create and push branch
         run: |
           git config user.name  "eboss-agent[bot]"
           git config user.email "eboss-agent@users.noreply.github.com"
           git checkout -B "${{ needs.setup.outputs.branch }}"
           git push origin "${{ needs.setup.outputs.branch }}"
 
-      - name: Dispatch task to OpenClaw
-        id: dispatch
+      - name: Submit task to OpenClaw via /v1/responses
+        id: task
+        env:
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+        # /v1/responses is synchronous — curl waits up to 30 min for completion.
+        # The prompt tells OpenClaw to end its reply with the PR URL so we can
+        # extract it. The `user` key pins a stable session so gh CLI context
+        # (auth, cwd) is reused for the lifetime of this run.
         run: |
-          PAYLOAD=$(python3 -c "
+          PROMPT=$(python3 -c "
+          import json, sys
+
+          task = '''You are working in the EBOSS monorepo (Vite + React + Supabase, pnpm workspaces).
+          The unified app is apps/manager. Shared packages live in packages/.
+
+          ## Linear Issue: ${{ env.ISSUE_ID }} — ${{ env.TITLE }}
+
+          ${{ env.DESCRIPTION }}
+
+          ## Instructions
+          1. Read relevant source files before making any changes.
+          2. Implement only what the issue describes — no scope creep.
+          3. Work in branch: ${{ needs.setup.outputs.branch }} (already created and pushed).
+          4. After implementing, run: pnpm --dir apps/manager run typecheck && pnpm turbo run lint
+          5. Commit all changes with message: feat(${{ env.ISSUE_ID }}): <short description>
+          6. Push the branch: git push origin ${{ needs.setup.outputs.branch }}
+          7. Open a PR using gh cli:
+             gh pr create --title \"${{ env.ISSUE_ID }}: ${{ env.TITLE }}\" --body \"Automated OpenClaw implementation\" --label \"ai-agent,openclaw\" --base main --head \"${{ needs.setup.outputs.branch }}\"
+          8. In your FINAL reply, include the PR URL on its own line starting with PR:
+             Example: PR: https://github.com/${{ github.repository }}/pull/123
+
+          Repo: ${{ github.repository }}
+          '''
+          print(json.dumps(task))
+          ")
+
+          BODY=$(python3 -c "
           import json
           print(json.dumps({
-            'run_id':       '${{ env.RUN_ID }}',
-            'issue_id':     '${{ env.ISSUE_ID }}',
-            'title':        '${{ env.TITLE }}',
-            'description':  '${{ env.DESCRIPTION }}',
-            'branch':       '${{ needs.setup.outputs.branch }}',
-            'repo':         '${{ github.repository }}',
-            'base_branch':  'main',
+            'model':  'openclaw',
+            'input':  $PROMPT,
+            'stream': False,
+            'user':   '${{ env.RUN_ID }}',
           }))
           ")
 
-          RESPONSE=$(curl -sf -X POST "http://localhost:18789/tasks" \
+          RESPONSE=$(curl -sf \
+            --max-time 1800 \
+            -X POST "http://127.0.0.1:18789/v1/responses" \
+            -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
+            -d "$BODY")
 
-          TASK_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))")
-          echo "task_id=$TASK_ID" >> "$GITHUB_OUTPUT"
-          echo "OpenClaw task_id: $TASK_ID"
+          echo "$RESPONSE" > /tmp/openclaw_response.json
 
-      - name: Poll OpenClaw until complete (30 min timeout)
-        id: poll
-        run: |
-          TASK_ID="${{ steps.dispatch.outputs.task_id }}"
-          DEADLINE=$(( $(date +%s) + 1800 ))   # 30 min from now
+          # Extract text from: output[0].content[0].text
+          TEXT=$(python3 -c "
+          import json, sys
+          data = json.load(open('/tmp/openclaw_response.json'))
+          items = data.get('output', [])
+          for item in items:
+            for part in item.get('content', []):
+              if part.get('type') == 'text':
+                print(part['text'])
+                sys.exit(0)
+          " 2>/dev/null || echo "")
 
-          while true; do
-            NOW=$(date +%s)
-            if [ "$NOW" -ge "$DEADLINE" ]; then
-              echo "::error::OpenClaw task $TASK_ID timed out after 30 min"
-              exit 1
-            fi
+          echo "OpenClaw response (tail):"
+          echo "$TEXT" | tail -20
 
-            RESULT=$(curl -sf "http://localhost:18789/tasks/${TASK_ID}" || echo '{"status":"error"}')
-            STATUS=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))")
+          # Extract PR URL — agent ends reply with "PR: <url>"
+          PR_URL=$(echo "$TEXT" | grep -oP 'PR:\s*\Khttps://github\.com/\S+/pull/\d+' | head -1)
+          PR_NUM=$(echo "$PR_URL" | grep -oE '[0-9]+$')
 
-            echo "$(date -u +%H:%M:%S) task_id=$TASK_ID status=$STATUS"
+          echo "pr_url=$PR_URL"  >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+          echo "agent_text<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$TEXT" | tail -5 >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
-            if [ "$STATUS" = "completed" ]; then
-              PR_URL=$(echo "$RESULT"    | python3 -c "import sys,json; print(json.load(sys.stdin).get('pr_url',''))")
-              PR_NUM=$(echo "$RESULT"    | python3 -c "import sys,json; print(json.load(sys.stdin).get('pr_number',''))")
-              echo "pr_url=$PR_URL"     >> "$GITHUB_OUTPUT"
-              echo "pr_number=$PR_NUM"  >> "$GITHUB_OUTPUT"
-              break
-            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "error" ]; then
-              ERR=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','unknown error'))")
-              echo "::error::OpenClaw task failed: $ERR"
-              exit 1
-            fi
-
-            sleep 30
-          done
-
-      - name: Open PR (if OpenClaw didn't open one)
+      - name: Open PR (fallback if OpenClaw didn't open one)
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_URL="${{ steps.poll.outputs.pr_url }}"
+          PR_URL="${{ steps.task.outputs.pr_url }}"
           if [ -n "$PR_URL" ]; then
-            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-            echo "pr_number=${{ steps.poll.outputs.pr_number }}" >> "$GITHUB_OUTPUT"
-            echo "OpenClaw opened PR: $PR_URL"
+            echo "pr_url=$PR_URL"    >> "$GITHUB_OUTPUT"
+            echo "pr_number=${{ steps.task.outputs.pr_number }}" >> "$GITHUB_OUTPUT"
+            echo "OpenClaw PR: $PR_URL"
           else
-            # OpenClaw committed but didn't open a PR — open one now
+            echo "::warning::No PR URL found in OpenClaw response — opening PR via workflow"
             PR_URL=$(gh pr create \
               --title "${{ env.ISSUE_ID }}: ${{ env.TITLE }}" \
               --body "Automated OpenClaw implementation of ${{ env.ISSUE_ID }}." \
@@ -474,17 +505,22 @@ jobs:
             echo "pr_number=$(echo $PR_URL | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Notify OpenClaw WhatsApp — task complete
+      - name: Send WhatsApp via OpenClaw /hooks/agent
+        env:
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+          OPENCLAW_WHATSAPP_TO:   ${{ secrets.OPENCLAW_WHATSAPP_TO }}
         run: |
-          curl -sf -X POST "http://localhost:18789/notify" \
+          MSG="✅ OpenClaw task complete\n${{ env.ISSUE_ID }}: ${{ env.TITLE }}\nPR: ${{ steps.pr.outputs.pr_url }}"
+          curl -sf -X POST "http://127.0.0.1:18789/hooks/agent" \
+            -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
-              \"event\":    \"task_complete\",
-              \"issue_id\": \"${{ env.ISSUE_ID }}\",
-              \"title\":    \"${{ env.TITLE }}\",
-              \"pr_url\":   \"${{ steps.pr.outputs.pr_url }}\",
-              \"run_id\":   \"${{ env.RUN_ID }}\"
-            }" || echo "WhatsApp notify failed (non-fatal)"
+              \"message\":        \"${MSG}\",
+              \"deliver\":        true,
+              \"channel\":        \"whatsapp\",
+              \"to\":             \"${OPENCLAW_WHATSAPP_TO}\",
+              \"timeoutSeconds\": 30
+            }" || echo "WhatsApp delivery failed (non-fatal)"
 
       - name: Report to Firestore
         run: |
