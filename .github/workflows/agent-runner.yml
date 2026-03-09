@@ -1,0 +1,386 @@
+name: AI Agent Runner
+
+# Triggered by linearAgentWebhook Cloud Function via repository_dispatch.
+# Routes each Linear issue to the correct AI agent based on its label,
+# then reports status back to Firestore via agentRunStatusUpdate.
+
+on:
+  repository_dispatch:
+    types: [linear-agent-dispatch]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Firestore run ID (e.g. EBOSS-88-1741478400000)"
+        required: true
+      issue_id:
+        description: "Linear issue identifier (e.g. EBOSS-88)"
+        required: true
+      issue_linear_id:
+        description: "Linear issue UUID"
+        required: true
+      title:
+        description: "Issue title"
+        required: true
+      description:
+        description: "Issue description (markdown)"
+        required: false
+        default: ""
+      agent_type:
+        description: "Agent to use"
+        required: true
+        type: choice
+        options: [claude-code, devin, codex, kimi]
+      branch_name:
+        description: "Branch to create/use"
+        required: false
+        default: ""
+      labels:
+        description: "Comma-separated Linear label names"
+        required: false
+        default: ""
+
+env:
+  # Resolve inputs from either repository_dispatch payload or workflow_dispatch inputs
+  RUN_ID:          ${{ github.event.client_payload.run_id        || inputs.run_id }}
+  ISSUE_ID:        ${{ github.event.client_payload.issue_id      || inputs.issue_id }}
+  ISSUE_LINEAR_ID: ${{ github.event.client_payload.issue_linear_id || inputs.issue_linear_id }}
+  TITLE:           ${{ github.event.client_payload.title         || inputs.title }}
+  DESCRIPTION:     ${{ github.event.client_payload.description   || inputs.description }}
+  AGENT_TYPE:      ${{ github.event.client_payload.agent_type    || inputs.agent_type }}
+  BRANCH_NAME:     ${{ github.event.client_payload.branch_name   || inputs.branch_name }}
+
+jobs:
+  # ── 1. Setup & status update ─────────────────────────────────────────────────
+  setup:
+    name: Log run start
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.branch.outputs.name }}
+    steps:
+      - name: Report "running" to Firestore
+        run: |
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "runId":       "${{ env.RUN_ID }}",
+              "status":      "running",
+              "githubRunId": "${{ github.run_id }}"
+            }'
+
+      - name: Resolve branch name
+        id: branch
+        run: |
+          BRANCH="${{ env.BRANCH_NAME }}"
+          if [ -z "$BRANCH" ]; then
+            # Derive from issue ID if Linear didn't provide one
+            SLUG=$(echo "${{ env.TITLE }}" | tr '[:upper:]' '[:lower:]' | \
+                   sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | cut -c1-40)
+            BRANCH="claude/$(echo '${{ env.ISSUE_ID }}' | tr '[:upper:]' '[:lower:]')-${SLUG}"
+          fi
+          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+  # ── 2a. Claude Code agent ──────────────────────────────────────────────────
+  claude-code:
+    name: Run Claude Code
+    needs: setup
+    if: ${{ github.event.client_payload.agent_type == 'claude-code' || inputs.agent_type == 'claude-code' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create/checkout agent branch
+        run: |
+          git config user.name  "eboss-agent[bot]"
+          git config user.email "eboss-agent@users.noreply.github.com"
+          git checkout -B "${{ needs.setup.outputs.branch }}"
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          branch: ${{ needs.setup.outputs.branch }}
+          direct_prompt: |
+            You are working on the EBOSS monorepo (Vite + React + Supabase, pnpm workspaces).
+            The unified app is `apps/manager`. Shared packages live in `packages/`.
+
+            ## Issue: ${{ env.ISSUE_ID }} — ${{ env.TITLE }}
+
+            ${{ env.DESCRIPTION }}
+
+            ## Instructions
+            1. Read relevant source files before making changes.
+            2. Implement only what the issue describes — no scope creep.
+            3. Run `pnpm --dir apps/manager run typecheck` and `pnpm turbo run lint` after changes.
+            4. Commit with message: `feat(${{ env.ISSUE_ID }}): <short description>`.
+            5. Do NOT push — the workflow will open the PR.
+
+      - name: Open PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin "${{ needs.setup.outputs.branch }}"
+          PR_URL=$(gh pr create \
+            --title "${{ env.ISSUE_ID }}: ${{ env.TITLE }}" \
+            --body "$(cat <<'PRBODY'
+          ## Linear Issue
+          **[${{ env.ISSUE_ID }}]** ${{ env.TITLE }}
+
+          ## Agent
+          `claude-code` — automated implementation
+
+          ## Changes
+          See commits on this branch for the implementation.
+
+          ## Review
+          BrainGrid acceptance review will run automatically.
+
+          ---
+          Closes ${{ env.ISSUE_ID }}
+          PRBODY
+          )" \
+            --label "ai-agent,claude-code" \
+            --base main \
+            --head "${{ needs.setup.outputs.branch }}" 2>&1)
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Report success to Firestore
+        run: |
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"runId\":     \"${{ env.RUN_ID }}\",
+              \"status\":    \"pr_opened\",
+              \"prUrl\":     \"${{ steps.pr.outputs.pr_url }}\",
+              \"prNumber\":  ${{ steps.pr.outputs.pr_number }}
+            }"
+
+  # ── 2b. Devin agent ───────────────────────────────────────────────────────
+  devin:
+    name: Dispatch to Devin
+    needs: setup
+    if: ${{ github.event.client_payload.agent_type == 'devin' || inputs.agent_type == 'devin' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Devin session
+        id: devin
+        run: |
+          RESPONSE=$(curl -sf -X POST "https://api.devin.ai/v1/sessions" \
+            -H "Authorization: Bearer ${{ secrets.DEVIN_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"prompt\": \"${{ env.ISSUE_ID }}: ${{ env.TITLE }}\n\n${{ env.DESCRIPTION }}\n\nWork in branch: ${{ needs.setup.outputs.branch }}\",
+              \"repo\": \"${{ github.repository }}\",
+              \"base_branch\": \"main\",
+              \"branch\": \"${{ needs.setup.outputs.branch }}\"
+            }")
+          SESSION_URL=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('url',''))")
+          echo "session_url=$SESSION_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Report dispatched to Firestore
+        run: |
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"runId\":  \"${{ env.RUN_ID }}\",
+              \"status\": \"running\",
+              \"prUrl\":  \"${{ steps.devin.outputs.session_url }}\"
+            }"
+
+  # ── 2c. Codex agent ───────────────────────────────────────────────────────
+  codex:
+    name: Run Codex CLI
+    needs: setup
+    if: ${{ github.event.client_payload.agent_type == 'codex' || inputs.agent_type == 'codex' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Create branch
+        run: |
+          git config user.name  "eboss-agent[bot]"
+          git config user.email "eboss-agent@users.noreply.github.com"
+          git checkout -B "${{ needs.setup.outputs.branch }}"
+
+      - name: Run Codex
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          codex --approval-mode full-auto \
+            "${{ env.ISSUE_ID }}: ${{ env.TITLE }}\n\n${{ env.DESCRIPTION }}"
+
+      - name: Open PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin "${{ needs.setup.outputs.branch }}"
+          PR_URL=$(gh pr create \
+            --title "${{ env.ISSUE_ID }}: ${{ env.TITLE }}" \
+            --body "Automated Codex implementation of ${{ env.ISSUE_ID }}." \
+            --label "ai-agent,codex" \
+            --base main)
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$(echo $PR_URL | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
+
+      - name: Report to Firestore
+        run: |
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"runId\":    \"${{ env.RUN_ID }}\",
+              \"status\":   \"pr_opened\",
+              \"prUrl\":    \"${{ steps.pr.outputs.pr_url }}\",
+              \"prNumber\": ${{ steps.pr.outputs.pr_number }}
+            }"
+
+  # ── 2d. Kimi agent ────────────────────────────────────────────────────────
+  kimi:
+    name: Run Kimi (Moonshot)
+    needs: setup
+    if: ${{ github.event.client_payload.agent_type == 'kimi' || inputs.agent_type == 'kimi' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Create branch
+        run: |
+          git config user.name  "eboss-agent[bot]"
+          git config user.email "eboss-agent@users.noreply.github.com"
+          git checkout -B "${{ needs.setup.outputs.branch }}"
+
+      - name: Run Kimi via API
+        env:
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+        run: |
+          node - <<'EOF'
+          const https = require("https");
+          const fs = require("fs");
+
+          const prompt = `${{ env.ISSUE_ID }}: ${{ env.TITLE }}\n\n${{ env.DESCRIPTION }}`;
+          const body = JSON.stringify({
+            model: "moonshot-v1-auto",
+            messages: [
+              { role: "system", content: "You are an expert React/TypeScript engineer working in the EBOSS monorepo. Implement the requested issue precisely. Output only the file changes needed." },
+              { role: "user",   content: prompt }
+            ],
+            stream: false,
+          });
+
+          const options = {
+            hostname: "api.moonshot.cn",
+            path: "/v1/chat/completions",
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.KIMI_API_KEY}`,
+              "Content-Type": "application/json",
+              "Content-Length": Buffer.byteLength(body),
+            },
+          };
+
+          const req = https.request(options, (res) => {
+            let data = "";
+            res.on("data", c => data += c);
+            res.on("end", () => {
+              const result = JSON.parse(data);
+              const content = result.choices?.[0]?.message?.content || "";
+              console.log("Kimi response received, length:", content.length);
+              fs.writeFileSync("/tmp/kimi-output.md", content);
+            });
+          });
+          req.on("error", e => { console.error(e); process.exit(1); });
+          req.write(body);
+          req.end();
+          EOF
+
+      - name: Open PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add -A && git commit -m "feat(${{ env.ISSUE_ID }}): Kimi agent implementation" || true
+          git push origin "${{ needs.setup.outputs.branch }}"
+          PR_URL=$(gh pr create \
+            --title "${{ env.ISSUE_ID }}: ${{ env.TITLE }}" \
+            --body "Automated Kimi implementation of ${{ env.ISSUE_ID }}." \
+            --label "ai-agent,kimi" \
+            --base main)
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$(echo $PR_URL | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
+
+      - name: Report to Firestore
+        run: |
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"runId\":    \"${{ env.RUN_ID }}\",
+              \"status\":   \"pr_opened\",
+              \"prUrl\":    \"${{ steps.pr.outputs.pr_url }}\",
+              \"prNumber\": ${{ steps.pr.outputs.pr_number }}
+            }"
+
+  # ── 3. Failure handler ───────────────────────────────────────────────────
+  on-failure:
+    name: Log failure
+    needs: [claude-code, devin, codex, kimi]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report failure to Firestore
+        run: |
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"runId\":  \"${{ env.RUN_ID }}\",
+              \"status\": \"failed\",
+              \"error\":  \"GitHub Actions run ${{ github.run_id }} failed — see https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }"

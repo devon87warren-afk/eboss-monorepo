@@ -1,0 +1,141 @@
+name: Agent Staleness Monitor
+
+# Runs every 30 minutes during working hours (Mon–Fri, 8am–8pm UTC).
+# Calls the stalenessMonitor Cloud Function, which:
+#   1. Queries Firestore for agent_runs stuck in dispatched/running > 90 min
+#   2. Marks them "stalled"
+#   3. Posts a Linear comment with elapsed time
+#
+# This workflow surfaces the stall count and any stalled run IDs as a
+# job summary so they show up in the GitHub Actions UI without needing
+# to dig into Cloud Function logs.
+
+on:
+  schedule:
+    # Every 30 min, Mon–Fri, 8:00–20:00 UTC
+    - cron: "*/30 8-20 * * 1-5"
+  workflow_dispatch: {}   # manual trigger for testing
+
+jobs:
+  check-stalled-runs:
+    name: Check for stalled agent runs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call stalenessMonitor
+        id: monitor
+        env:
+          AGENT_CALLBACK_SECRET: ${{ secrets.AGENT_CALLBACK_SECRET }}
+        run: |
+          RESPONSE=$(curl -sf -X POST "${{ secrets.STALENESS_MONITOR_URL }}" \
+            -H "Authorization: Bearer $AGENT_CALLBACK_SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{}' 2>&1 || echo '{"stalled":0,"stalledIds":[],"error":"call failed"}')
+
+          echo "response=$RESPONSE" >> "$GITHUB_OUTPUT"
+
+          COUNT=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stalled',0))" 2>/dev/null || echo "0")
+          IDS=$(echo "$RESPONSE"   | python3 -c "import sys,json; print(','.join(json.load(sys.stdin).get('stalledIds',[])))" 2>/dev/null || echo "")
+
+          echo "stalled_count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "stalled_ids=$IDS"     >> "$GITHUB_OUTPUT"
+
+      - name: Write job summary
+        run: |
+          COUNT="${{ steps.monitor.outputs.stalled_count }}"
+          IDS="${{ steps.monitor.outputs.stalled_ids }}"
+          TIMESTAMP=$(date -u "+%Y-%m-%dT%H:%M:%SZ")
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<SUMMARY
+          ## Agent Staleness Report — ${TIMESTAMP}
+
+          | Metric | Value |
+          |---|---|
+          | Stalled runs detected | **${COUNT}** |
+          | Stalled run IDs | \`${IDS:-none}\` |
+          | Stale threshold | 90 minutes |
+
+          SUMMARY
+
+          if [ "$COUNT" -gt "0" ]; then
+            cat >> "$GITHUB_STEP_SUMMARY" <<WARN
+          ### ⚠️ Action Required
+
+          The following agent runs have exceeded the stale threshold.
+          A comment has been posted on the corresponding Linear issues.
+
+          Run IDs: \`${IDS}\`
+
+          Check Firestore \`agent_runs\` collection or the Linear issues for details.
+          WARN
+          else
+            echo "✅ No stalled runs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail job if stalled runs found (for alert visibility)
+        if: steps.monitor.outputs.stalled_count != '0'
+        run: |
+          echo "::warning title=Stalled Agent Runs::${{ steps.monitor.outputs.stalled_count }} run(s) stalled: ${{ steps.monitor.outputs.stalled_ids }}"
+          # Do not exit 1 — a warning is enough; we don't want this to block other workflows.
+
+  # ── Weekly summary ──────────────────────────────────────────────────────────
+  # Every Monday 8:00 UTC — generate a weekly agent performance report
+  # from Firestore and post it as a job summary.
+  weekly-report:
+    name: Weekly agent performance report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' && github.event.schedule == '0 8 * * 1'
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch agent_runs stats from Firestore
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          node - <<'EOF'
+          const { initializeApp, cert } = require("firebase-admin/app");
+          const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+
+          const creds = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || "{}");
+          initializeApp({ credential: cert(creds) });
+          const db = getFirestore();
+
+          const oneWeekAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+          db.collection("agent_runs")
+            .where("startedAt", ">=", oneWeekAgo)
+            .get()
+            .then((snap) => {
+              const runs = snap.docs.map((d) => d.data());
+              const byAgent   = {};
+              const byStatus  = {};
+              let totalDuration = 0;
+              let durationCount = 0;
+
+              for (const run of runs) {
+                byAgent[run.agentType]  = (byAgent[run.agentType]  || 0) + 1;
+                byStatus[run.status]    = (byStatus[run.status]    || 0) + 1;
+                if (run.durationMs) { totalDuration += run.durationMs; durationCount++; }
+              }
+
+              const avgMin = durationCount
+                ? Math.round(totalDuration / durationCount / 60000)
+                : "n/a";
+
+              let md = `## Weekly Agent Performance Report\n\n`;
+              md += `**Period:** last 7 days  **Total runs:** ${runs.length}\n\n`;
+              md += `### By Agent\n| Agent | Runs |\n|---|---|\n`;
+              for (const [a, c] of Object.entries(byAgent)) md += `| ${a} | ${c} |\n`;
+              md += `\n### By Status\n| Status | Count |\n|---|---|\n`;
+              for (const [s, c] of Object.entries(byStatus)) md += `| ${s} | ${c} |\n`;
+              md += `\n### Timing\n| Metric | Value |\n|---|---|\n`;
+              md += `| Avg completion time | ${avgMin} min |\n`;
+              md += `| Stalled runs | ${byStatus["stalled"] || 0} |\n`;
+              md += `| Failed runs  | ${byStatus["failed"]  || 0} |\n`;
+
+              require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+              process.exit(0);
+            })
+            .catch((e) => { console.error(e); process.exit(1); });
+          EOF
