@@ -6,6 +6,14 @@ const { SecretManagerServiceClient } = require("@google-cloud/secret-manager");
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
+// ─── Linear Agent Orchestrator ────────────────────────────────────────────────
+// Webhook receiver, run status updater, and staleness monitor.
+// See: services/functions/linear-orchestrator.js
+const orchestrator = require("./linear-orchestrator");
+exports.linearAgentWebhook    = orchestrator.linearAgentWebhook;
+exports.agentRunStatusUpdate  = orchestrator.agentRunStatusUpdate;
+exports.stalenessMonitor      = orchestrator.stalenessMonitor;
+
 // ─── ANA Domain Auth ──────────────────────────────────────────────────────────
 
 const ALLOWED_DOMAIN = process.env.ANA_ALLOWED_DOMAIN || "anacorp.com";
