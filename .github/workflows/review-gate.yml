@@ -1,0 +1,270 @@
+name: Agent PR Review Gate
+
+# Runs BrainGrid acceptance review on every PR opened by an AI agent
+# (identified by the "ai-agent" label).
+# On approval  → updates Linear issue to "In Review" or "Done".
+# On rejection → updates Linear issue back to "Todo" with a comment.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-agent-pr:
+    name: Check if agent PR
+    runs-on: ubuntu-latest
+    outputs:
+      is_agent: ${{ steps.detect.outputs.is_agent }}
+      run_id:   ${{ steps.detect.outputs.run_id }}
+    steps:
+      - name: Detect ai-agent label
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} --json labels \
+            --jq '[.labels[].name] | join(",")' 2>/dev/null || echo "")
+          echo "Labels: $LABELS"
+
+          if echo "$LABELS" | grep -q "ai-agent"; then
+            echo "is_agent=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "is_agent=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Extract run_id from PR body (agent runner embeds it)
+          RUN_ID=$(gh pr view ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} --json body \
+            --jq '.body' | grep -oP 'run-id:\s*\K[\w-]+' || echo "")
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+  braingrid-review:
+    name: BrainGrid Acceptance Review
+    needs: check-agent-pr
+    if: needs.check-agent-pr.outputs.is_agent == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      result:   ${{ steps.review.outputs.result }}
+      feedback: ${{ steps.review.outputs.feedback }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        id: typecheck
+        run: |
+          pnpm turbo run typecheck --continue 2>&1 | tee /tmp/typecheck.log
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Lint
+        id: lint
+        run: |
+          pnpm turbo run lint --continue 2>&1 | tee /tmp/lint.log
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Tests
+        id: test
+        run: |
+          pnpm turbo run test:run --continue 2>&1 | tee /tmp/test.log
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: BrainGrid review
+        id: review
+        env:
+          BRAINGRID_TOKEN: ${{ secrets.BRAINGRID_TOKEN }}
+        run: |
+          # Collect diff for BrainGrid
+          git diff origin/main...HEAD > /tmp/pr.diff
+
+          TYPECHECK_LOG=$(cat /tmp/typecheck.log | tail -20)
+          LINT_LOG=$(cat /tmp/lint.log | tail -20)
+          TEST_LOG=$(cat /tmp/test.log | tail -20)
+          DIFF_EXCERPT=$(head -200 /tmp/pr.diff)
+
+          PAYLOAD=$(python3 -c "
+          import json, sys
+          print(json.dumps({
+            'pr_number':  ${{ github.event.pull_request.number }},
+            'pr_title':   '${{ github.event.pull_request.title }}',
+            'repo':       '${{ github.repository }}',
+            'diff':       open('/tmp/pr.diff').read()[:8000],
+            'typecheck':  open('/tmp/typecheck.log').read()[-3000:],
+            'lint':       open('/tmp/lint.log').read()[-3000:],
+            'tests':      open('/tmp/test.log').read()[-3000:],
+            'ci_passed':  all([
+              '${{ steps.typecheck.outputs.exit_code }}' == '0',
+              '${{ steps.lint.outputs.exit_code }}'      == '0',
+              '${{ steps.test.outputs.exit_code }}'      == '0',
+            ]),
+          }))
+          ")
+
+          # Call BrainGrid acceptance review
+          if [ -n "$BRAINGRID_TOKEN" ]; then
+            RESPONSE=$(curl -sf -X POST "https://api.braingrid.ai/v1/reviews" \
+              -H "Authorization: Bearer $BRAINGRID_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" 2>/dev/null || echo '{"verdict":"error","feedback":"BrainGrid API unavailable"}')
+          else
+            # No token — base verdict purely on CI results
+            TYPECHECK_OK=${{ steps.typecheck.outputs.exit_code == '0' }}
+            LINT_OK=${{ steps.lint.outputs.exit_code == '0' }}
+            TEST_OK=${{ steps.test.outputs.exit_code == '0' }}
+            if [ "$TYPECHECK_OK" = "true" ] && [ "$LINT_OK" = "true" ] && [ "$TEST_OK" = "true" ]; then
+              RESPONSE='{"verdict":"approved","feedback":"All CI checks passed."}'
+            else
+              RESPONSE="{\"verdict\":\"changes_requested\",\"feedback\":\"CI failed — typecheck: ${{ steps.typecheck.outputs.exit_code }}, lint: ${{ steps.lint.outputs.exit_code }}, test: ${{ steps.test.outputs.exit_code }}\"}"
+            fi
+          fi
+
+          VERDICT=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('verdict','error'))")
+          FEEDBACK=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('feedback',''))")
+
+          echo "result=$VERDICT"   >> "$GITHUB_OUTPUT"
+          echo "feedback=$FEEDBACK" >> "$GITHUB_OUTPUT"
+          echo "BrainGrid verdict: $VERDICT"
+
+  update-linear-and-log:
+    name: Update Linear + Firestore
+    needs: [check-agent-pr, braingrid-review]
+    if: always() && needs.check-agent-pr.outputs.is_agent == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post review result as PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERDICT:  ${{ needs.braingrid-review.outputs.result }}
+          FEEDBACK: ${{ needs.braingrid-review.outputs.feedback }}
+        run: |
+          if [ "$VERDICT" = "approved" ]; then
+            ICON="✅"
+            STATUS_TEXT="Approved — ready to merge"
+          else
+            ICON="🔄"
+            STATUS_TEXT="Changes requested"
+          fi
+
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "## ${ICON} BrainGrid Review: ${STATUS_TEXT}
+
+          **Verdict:** \`${VERDICT}\`
+
+          ${FEEDBACK}
+
+          ---
+          _Automated acceptance review — EBOSS Agent Orchestrator_"
+
+      - name: Update Firestore run log
+        if: needs.check-agent-pr.outputs.run_id != ''
+        run: |
+          VERDICT="${{ needs.braingrid-review.outputs.result }}"
+          if [ "$VERDICT" = "approved" ]; then
+            FINAL_STATUS="completed"
+          else
+            FINAL_STATUS="pr_opened"
+          fi
+
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"runId\":        \"${{ needs.check-agent-pr.outputs.run_id }}\",
+              \"status\":       \"${FINAL_STATUS}\",
+              \"reviewResult\": \"${{ needs.braingrid-review.outputs.result }}\"
+            }" || true   # non-fatal if run_id wasn't embedded in PR body
+
+      - name: Update Linear issue state
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          VERDICT: ${{ needs.braingrid-review.outputs.result }}
+        run: |
+          # Extract Linear issue ID from PR title (format: "EBOSS-88: ...")
+          ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oP '^[A-Z]+-[0-9]+')
+
+          if [ -z "$ISSUE_ID" ] || [ -z "$LINEAR_API_KEY" ]; then
+            echo "No issue ID or Linear token — skipping Linear update"
+            exit 0
+          fi
+
+          if [ "$VERDICT" = "approved" ]; then
+            # Move to "In Review" state (human final approval before Done)
+            STATE_NAME="In Review"
+            COMMENT="✅ BrainGrid review passed. PR #${{ github.event.pull_request.number }} is ready for final merge.\n\n**PR:** ${{ github.event.pull_request.html_url }}"
+          else
+            # Move back to Todo with feedback
+            STATE_NAME="Todo"
+            COMMENT="🔄 Agent PR returned for changes.\n\n**Feedback:** ${{ needs.braingrid-review.outputs.feedback }}\n\n**PR:** ${{ github.event.pull_request.html_url }}"
+          fi
+
+          # Resolve state ID via Linear GraphQL
+          STATE_QUERY=$(python3 -c "
+          import json
+          print(json.dumps({
+            'query': '''query {
+              workflowStates(filter: { name: { eq: \"''' + '$STATE_NAME' + '''\" } }) {
+                nodes { id name type }
+              }
+            }'''
+          }))
+          ")
+
+          STATE_RESPONSE=$(curl -sf -X POST "https://api.linear.app/graphql" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$STATE_QUERY")
+
+          STATE_ID=$(echo "$STATE_RESPONSE" | \
+            python3 -c "import sys,json; nodes=json.load(sys.stdin)['data']['workflowStates']['nodes']; print(nodes[0]['id'] if nodes else '')" 2>/dev/null || echo "")
+
+          # Post comment on Linear issue
+          COMMENT_PAYLOAD=$(python3 -c "
+          import json
+          print(json.dumps({
+            'query': 'mutation { commentCreate(input: { issueId: \"ISSUE_ID_PLACEHOLDER\", body: \"BODY_PLACEHOLDER\" }) { success } }'
+          }))
+          " | sed "s/ISSUE_ID_PLACEHOLDER/${ISSUE_ID}/" | sed "s|BODY_PLACEHOLDER|${COMMENT}|")
+
+          # Find Linear issue UUID by identifier
+          ID_QUERY=$(python3 -c "
+          import json
+          print(json.dumps({'query': '{ issues(filter: { identifier: { eq: \"$ISSUE_ID\" } }) { nodes { id } } }'}))
+          ")
+
+          ISSUE_UUID=$(curl -sf -X POST "https://api.linear.app/graphql" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$ID_QUERY" | \
+            python3 -c "import sys,json; nodes=json.load(sys.stdin)['data']['issues']['nodes']; print(nodes[0]['id'] if nodes else '')" 2>/dev/null || echo "")
+
+          if [ -n "$ISSUE_UUID" ]; then
+            # Post comment
+            curl -sf -X POST "https://api.linear.app/graphql" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"mutation { commentCreate(input: { issueId: \\\"${ISSUE_UUID}\\\", body: \\\"${COMMENT}\\\" }) { success } }\"}" > /dev/null || true
+
+            # Update state
+            if [ -n "$STATE_ID" ]; then
+              curl -sf -X POST "https://api.linear.app/graphql" \
+                -H "Authorization: $LINEAR_API_KEY" \
+                -H "Content-Type: application/json" \
+                -d "{\"query\":\"mutation { issueUpdate(id: \\\"${ISSUE_UUID}\\\", input: { stateId: \\\"${STATE_ID}\\\" }) { success } }\"}" > /dev/null || true
+            fi
+          fi
