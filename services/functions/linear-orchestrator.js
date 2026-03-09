@@ -16,7 +16,7 @@
  *   title            string
  *   description      string
  *   labels           string[]
- *   agentType        "claude-code" | "devin" | "codex" | "kimi" | "unknown"
+ *   agentType        "claude-code" | "devin" | "codex" | "kimi" | "openclaw" | "unknown"
  *   status           "dispatched" | "running" | "pr_opened" | "reviewing"
  *                    | "completed" | "failed" | "stalled"
  *   priority         number
@@ -55,6 +55,9 @@ const LABEL_TO_AGENT = {
   "codex":        "codex",
   "Kimi":         "kimi",
   "kimi":         "kimi",
+  "OpenClaw":     "openclaw",
+  "openclaw":     "openclaw",
+  "Openclaw":     "openclaw",
 };
 
 /** Stale threshold in milliseconds (90 minutes). */
@@ -210,6 +213,61 @@ function postLinearComment(issueId, body, linearToken) {
 
     req.on("error", reject);
     req.write(query);
+    req.end();
+  });
+}
+
+// ─── WhatsApp Notifications (Twilio) ─────────────────────────────────────────
+
+/**
+ * Send a WhatsApp message via Twilio.
+ * Requires env vars:
+ *   TWILIO_ACCOUNT_SID   – Twilio account SID
+ *   TWILIO_AUTH_TOKEN    – Twilio auth token
+ *   TWILIO_WHATSAPP_FROM – sender number, e.g. "whatsapp:+14155238886"
+ *   WHATSAPP_TO          – recipient, e.g. "whatsapp:+19995550123"
+ */
+function sendWhatsAppMessage(body) {
+  const sid   = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from  = process.env.TWILIO_WHATSAPP_FROM;
+  const to    = process.env.WHATSAPP_TO;
+
+  if (!sid || !token || !from || !to) {
+    functions.logger.warn("sendWhatsAppMessage: Twilio env vars not set, skipping");
+    return Promise.resolve();
+  }
+
+  const params = new URLSearchParams({ From: from, To: to, Body: body }).toString();
+  const auth   = Buffer.from(`${sid}:${token}`).toString("base64");
+
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: "api.twilio.com",
+      path:     `/2010-04-01/Accounts/${sid}/Messages.json`,
+      method:   "POST",
+      headers: {
+        "Authorization": `Basic ${auth}`,
+        "Content-Type":  "application/x-www-form-urlencoded",
+        "Content-Length": Buffer.byteLength(params),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          functions.logger.info("sendWhatsAppMessage: sent", { to, statusCode: res.statusCode });
+          resolve();
+        } else {
+          reject(new Error(`Twilio error ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.write(params);
     req.end();
   });
 }
@@ -384,6 +442,33 @@ exports.agentRunStatusUpdate = functions.https.onRequest(async (req, res) => {
 
   functions.logger.info("agentRunStatusUpdate", { runId, status, durationMs: update.durationMs });
 
+  // WhatsApp notification on review result
+  if (reviewResult != null) {
+    const issueId  = existing.issueId  || runId;
+    const title    = existing.title    || "";
+    const prLink   = prUrl || existing.prUrl || "";
+    const durMin   = update.durationMs ? Math.round(update.durationMs / 60000) : "?";
+
+    const msgApproved = [
+      `✅ *EBOSS Agent — Review Approved*`,
+      `Issue: ${issueId} — ${title}`,
+      `Agent: ${existing.agentType || "?"}`,
+      `PR: ${prLink}`,
+      `Duration: ${durMin} min`,
+    ].join("\n");
+
+    const msgRejected = [
+      `🔄 *EBOSS Agent — Changes Requested*`,
+      `Issue: ${issueId} — ${title}`,
+      `Agent: ${existing.agentType || "?"}`,
+      `PR: ${prLink}`,
+      `The agent PR needs revision before it can merge.`,
+    ].join("\n");
+
+    await sendWhatsAppMessage(reviewResult === "approved" ? msgApproved : msgRejected)
+      .catch((e) => functions.logger.error("agentRunStatusUpdate: WhatsApp failed", { e: e.message }));
+  }
+
   res.status(200).json({ ok: true });
 });
 
@@ -440,6 +525,20 @@ exports.stalenessMonitor = functions.https.onRequest(async (req, res) => {
         stalledAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+      // WhatsApp alert for stalled run
+      const elapsedMin = Math.round(
+        (Date.now() - run.startedAt.toMillis()) / 60000
+      );
+      await sendWhatsAppMessage([
+        `⚠️ *EBOSS Agent — Stalled*`,
+        `Issue: ${run.issueId} — ${run.title || ""}`,
+        `Agent: ${run.agentType}  |  Run: ${run.runId}`,
+        `Stuck for ${elapsedMin} min in status: ${run.status}`,
+        `Check GitHub Actions or re-trigger manually.`,
+      ].join("\n")).catch(
+        (e) => functions.logger.error("stalenessMonitor: WhatsApp failed", { e: e.message })
+      );
 
       // Post comment on the Linear issue
       if (linearToken && run.issueLinearId) {

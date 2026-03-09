@@ -268,3 +268,41 @@ jobs:
                 -d "{\"query\":\"mutation { issueUpdate(id: \\\"${ISSUE_UUID}\\\", input: { stateId: \\\"${STATE_ID}\\\" }) { success } }\"}" > /dev/null || true
             fi
           fi
+
+  # ── Notify OpenClaw → WhatsApp ────────────────────────────────────────────
+  # Runs on the self-hosted OpenClaw runner (same machine as localhost:18789)
+  # so the POST reaches OpenClaw's WhatsApp channel without needing a tunnel.
+  notify-openclaw:
+    name: WhatsApp via OpenClaw
+    needs: [check-agent-pr, braingrid-review, update-linear-and-log]
+    if: always() && needs.check-agent-pr.outputs.is_agent == 'true'
+    runs-on: [self-hosted, openclaw]
+    steps:
+      - name: Send review result to OpenClaw
+        env:
+          VERDICT:  ${{ needs.braingrid-review.outputs.result }}
+          FEEDBACK: ${{ needs.braingrid-review.outputs.feedback }}
+        run: |
+          ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oP '^[A-Z]+-[0-9]+' || echo "")
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_NUM="${{ github.event.pull_request.number }}"
+
+          if [ "$VERDICT" = "approved" ]; then
+            EVENT="review_approved"
+            MESSAGE="✅ PR #${PR_NUM} approved — ${ISSUE_ID} ready to merge.\n${PR_URL}"
+          else
+            EVENT="review_changes_requested"
+            MESSAGE="🔄 PR #${PR_NUM} needs changes — ${ISSUE_ID}\nFeedback: ${FEEDBACK}\n${PR_URL}"
+          fi
+
+          curl -sf -X POST "http://localhost:18789/notify" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"event\":    \"${EVENT}\",
+              \"issue_id\": \"${ISSUE_ID}\",
+              \"pr_url\":   \"${PR_URL}\",
+              \"pr_number\": ${PR_NUM},
+              \"verdict\":  \"${VERDICT}\",
+              \"feedback\": \"${FEEDBACK}\",
+              \"message\":  \"${MESSAGE}\"
+            }" || echo "OpenClaw notify failed — WhatsApp message not sent (non-fatal)"

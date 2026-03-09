@@ -77,6 +77,27 @@ jobs:
           echo "::warning title=Stalled Agent Runs::${{ steps.monitor.outputs.stalled_count }} run(s) stalled: ${{ steps.monitor.outputs.stalled_ids }}"
           # Do not exit 1 — a warning is enough; we don't want this to block other workflows.
 
+  # Stall WhatsApp alert via OpenClaw (self-hosted runner on the same machine)
+  notify-stall-openclaw:
+    name: WhatsApp stall alert via OpenClaw
+    needs: check-stalled-runs
+    if: needs.check-stalled-runs.outputs.stalled_count != '0'
+    runs-on: [self-hosted, openclaw]
+    steps:
+      - name: Send stall alert to OpenClaw
+        run: |
+          COUNT="${{ needs.check-stalled-runs.outputs.stalled_count }}"
+          IDS="${{ needs.check-stalled-runs.outputs.stalled_ids }}"
+
+          curl -sf -X POST "http://localhost:18789/notify" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"event\":   \"agents_stalled\",
+              \"count\":   ${COUNT},
+              \"run_ids\": \"${IDS}\",
+              \"message\": \"⚠️ ${COUNT} EBOSS agent(s) stalled > 90 min\\nRun IDs: ${IDS}\\nCheck Linear issues or GitHub Actions.\"
+            }" || echo "OpenClaw notify failed (non-fatal)"
+
   # ── Weekly summary ──────────────────────────────────────────────────────────
   # Every Monday 8:00 UTC — generate a weekly agent performance report
   # from Firestore and post it as a job summary.

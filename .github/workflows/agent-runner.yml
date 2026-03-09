@@ -29,7 +29,7 @@ on:
         description: "Agent to use"
         required: true
         type: choice
-        options: [claude-code, devin, codex, kimi]
+        options: [claude-code, devin, codex, kimi, openclaw]
       branch_name:
         description: "Branch to create/use"
         required: false
@@ -367,10 +367,141 @@ jobs:
               \"prNumber\": ${{ steps.pr.outputs.pr_number }}
             }"
 
+  # ── 2e. OpenClaw agent ────────────────────────────────────────────────────
+  # Runs on a self-hosted runner registered on the same machine as OpenClaw
+  # (label: "openclaw") so localhost:18789 is reachable.
+  #
+  # OpenClaw REST contract assumed:
+  #   POST /tasks        → { task_id, status }
+  #   GET  /tasks/:id    → { task_id, status, pr_url?, pr_number?, error? }
+  #   POST /notify       → send a WhatsApp message via OpenClaw's existing channel
+  openclaw:
+    name: Run OpenClaw
+    needs: setup
+    if: ${{ github.event.client_payload.agent_type == 'openclaw' || inputs.agent_type == 'openclaw' }}
+    runs-on: [self-hosted, openclaw]
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create branch
+        run: |
+          git config user.name  "eboss-agent[bot]"
+          git config user.email "eboss-agent@users.noreply.github.com"
+          git checkout -B "${{ needs.setup.outputs.branch }}"
+          git push origin "${{ needs.setup.outputs.branch }}"
+
+      - name: Dispatch task to OpenClaw
+        id: dispatch
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          print(json.dumps({
+            'run_id':       '${{ env.RUN_ID }}',
+            'issue_id':     '${{ env.ISSUE_ID }}',
+            'title':        '${{ env.TITLE }}',
+            'description':  '${{ env.DESCRIPTION }}',
+            'branch':       '${{ needs.setup.outputs.branch }}',
+            'repo':         '${{ github.repository }}',
+            'base_branch':  'main',
+          }))
+          ")
+
+          RESPONSE=$(curl -sf -X POST "http://localhost:18789/tasks" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          TASK_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))")
+          echo "task_id=$TASK_ID" >> "$GITHUB_OUTPUT"
+          echo "OpenClaw task_id: $TASK_ID"
+
+      - name: Poll OpenClaw until complete (30 min timeout)
+        id: poll
+        run: |
+          TASK_ID="${{ steps.dispatch.outputs.task_id }}"
+          DEADLINE=$(( $(date +%s) + 1800 ))   # 30 min from now
+
+          while true; do
+            NOW=$(date +%s)
+            if [ "$NOW" -ge "$DEADLINE" ]; then
+              echo "::error::OpenClaw task $TASK_ID timed out after 30 min"
+              exit 1
+            fi
+
+            RESULT=$(curl -sf "http://localhost:18789/tasks/${TASK_ID}" || echo '{"status":"error"}')
+            STATUS=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))")
+
+            echo "$(date -u +%H:%M:%S) task_id=$TASK_ID status=$STATUS"
+
+            if [ "$STATUS" = "completed" ]; then
+              PR_URL=$(echo "$RESULT"    | python3 -c "import sys,json; print(json.load(sys.stdin).get('pr_url',''))")
+              PR_NUM=$(echo "$RESULT"    | python3 -c "import sys,json; print(json.load(sys.stdin).get('pr_number',''))")
+              echo "pr_url=$PR_URL"     >> "$GITHUB_OUTPUT"
+              echo "pr_number=$PR_NUM"  >> "$GITHUB_OUTPUT"
+              break
+            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "error" ]; then
+              ERR=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','unknown error'))")
+              echo "::error::OpenClaw task failed: $ERR"
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+      - name: Open PR (if OpenClaw didn't open one)
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL="${{ steps.poll.outputs.pr_url }}"
+          if [ -n "$PR_URL" ]; then
+            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+            echo "pr_number=${{ steps.poll.outputs.pr_number }}" >> "$GITHUB_OUTPUT"
+            echo "OpenClaw opened PR: $PR_URL"
+          else
+            # OpenClaw committed but didn't open a PR — open one now
+            PR_URL=$(gh pr create \
+              --title "${{ env.ISSUE_ID }}: ${{ env.TITLE }}" \
+              --body "Automated OpenClaw implementation of ${{ env.ISSUE_ID }}." \
+              --label "ai-agent,openclaw" \
+              --base main \
+              --head "${{ needs.setup.outputs.branch }}" 2>&1 || echo "")
+            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$(echo $PR_URL | grep -oE '[0-9]+$')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify OpenClaw WhatsApp — task complete
+        run: |
+          curl -sf -X POST "http://localhost:18789/notify" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"event\":    \"task_complete\",
+              \"issue_id\": \"${{ env.ISSUE_ID }}\",
+              \"title\":    \"${{ env.TITLE }}\",
+              \"pr_url\":   \"${{ steps.pr.outputs.pr_url }}\",
+              \"run_id\":   \"${{ env.RUN_ID }}\"
+            }" || echo "WhatsApp notify failed (non-fatal)"
+
+      - name: Report to Firestore
+        run: |
+          curl -sf -X POST "${{ secrets.AGENT_CALLBACK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.AGENT_CALLBACK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"runId\":    \"${{ env.RUN_ID }}\",
+              \"status\":   \"pr_opened\",
+              \"prUrl\":    \"${{ steps.pr.outputs.pr_url }}\",
+              \"prNumber\": ${{ steps.pr.outputs.pr_number || 0 }}
+            }"
+
   # ── 3. Failure handler ───────────────────────────────────────────────────
   on-failure:
     name: Log failure
-    needs: [claude-code, devin, codex, kimi]
+    needs: [claude-code, devin, codex, kimi, openclaw]
     if: failure()
     runs-on: ubuntu-latest
     steps:
